@@ -32,7 +32,7 @@ function createWindow() {
     frame: false,
     titleBarStyle: 'hidden',
     show: !startHidden,
-    icon: path.join(__dirname, '../../assets/icon.ico'),
+    icon: getAssetPath('icon.ico'),
     backgroundColor: '#0f1117',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -62,8 +62,21 @@ function createWindow() {
   })
 }
 
+function getAssetPath(filename: string): string {
+  // In production: app.asar/assets/ ; In dev: project_root/assets/
+  const possiblePaths = [
+    path.join(__dirname, '../../assets', filename),
+    path.join(app.getAppPath(), 'assets', filename),
+    path.join(process.resourcesPath || '', 'assets', filename),
+  ]
+  for (const p of possiblePaths) {
+    try { if (require('fs').existsSync(p)) return p } catch {}
+  }
+  return possiblePaths[0]
+}
+
 function createTray() {
-  const iconPath = path.join(__dirname, '../../assets/icon.ico')
+  const iconPath = getAssetPath('icon.ico')
   const icon = nativeImage.createFromPath(iconPath)
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
 

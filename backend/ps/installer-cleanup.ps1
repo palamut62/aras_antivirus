@@ -1,6 +1,6 @@
 param(
     [string]$Action = "scan",
-    [string[]]$Targets = @()
+    [string]$Targets = ""
 )
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -14,7 +14,7 @@ function Scan-Installers {
         @{ path = "$env:TEMP"; label = "Temp" }
     )
 
-    # Homebrew/Scoop cache
+    # Scoop cache
     $scoopCache = "$env:USERPROFILE\scoop\cache"
     if (Test-Path $scoopCache) {
         $scanPaths += @{ path = $scoopCache; label = "Scoop Cache" }
@@ -26,64 +26,53 @@ function Scan-Installers {
             Get-ChildItem -Path $sp.path -Filter $ext -File -ErrorAction SilentlyContinue | ForEach-Object {
                 $ageInDays = [math]::Floor(((Get-Date) - $_.LastWriteTime).TotalDays)
                 $results += @{
-                    path = $_.FullName
-                    name = $_.Name
-                    sizeBytes = $_.Length
+                    path = [string]$_.FullName
+                    name = [string]$_.Name
+                    sizeBytes = [long]$_.Length
                     lastModified = $_.LastWriteTime.ToString("yyyy-MM-dd HH:mm")
-                    ageDays = $ageInDays
-                    location = $sp.label
-                    extension = $_.Extension.ToLower()
+                    ageDays = [int]$ageInDays
+                    location = [string]$sp.label
+                    extension = [string]$_.Extension.ToLower()
                     isOld = ($ageInDays -gt 30)
                 }
             }
         }
     }
 
-    # Sort by size descending
-    $results = $results | Sort-Object { $_.sizeBytes } -Descending
+    $results = @($results | Sort-Object { $_.sizeBytes } -Descending)
     return $results
 }
 
 function Clean-Installers {
     param([string[]]$FilePaths)
     $cleaned = 0
-    $cleanedSize = 0
+    $cleanedSize = [long]0
     $errors = @()
 
     foreach ($fp in $FilePaths) {
         if (Test-Path $fp) {
             try {
-                $size = (Get-Item $fp).Length
-                # Move to recycle bin via Shell
-                $shell = New-Object -ComObject Shell.Application
-                $folder = $shell.Namespace((Split-Path $fp))
-                $item = $folder.ParseName((Split-Path $fp -Leaf))
-                if ($item) {
-                    # Use .InvokeVerb("delete") to move to recycle bin
-                    Remove-Item $fp -Force -ErrorAction Stop
-                    $cleaned++
-                    $cleanedSize += $size
-                }
+                $size = [long](Get-Item $fp).Length
+                Remove-Item $fp -Force -ErrorAction Stop
+                $cleaned++
+                $cleanedSize += $size
             } catch {
-                $errors += @{ path = $fp; error = $_.Exception.Message }
+                $errors += @{ path = [string]$fp; error = [string]$_.Exception.Message }
             }
         }
     }
 
     return @{
-        success = $true
-        data = @{
-            cleaned = $cleaned
-            cleanedSize = $cleanedSize
-            errors = $errors
-        }
+        cleaned = $cleaned
+        cleanedSize = $cleanedSize
+        errors = $errors
     }
 }
 
 # Main
 switch ($Action) {
     "scan" {
-        $installers = Scan-Installers
+        $installers = @(Scan-Installers)
         $totalSize = ($installers | Measure-Object -Property sizeBytes -Sum).Sum
         $oldCount = ($installers | Where-Object { $_.isOld }).Count
         @{
@@ -91,17 +80,22 @@ switch ($Action) {
             data = @{
                 installers = $installers
                 totalCount = $installers.Count
-                totalSize = if ($totalSize) { $totalSize } else { 0 }
+                totalSize = if ($totalSize) { [long]$totalSize } else { [long]0 }
                 oldCount = $oldCount
             }
         } | ConvertTo-Json -Depth 5
     }
     "clean" {
-        if ($Targets.Count -eq 0) {
-            @{ success = $false; error = "No targets specified" } | ConvertTo-Json
+        if (-not $Targets -or $Targets.Trim() -eq "") {
+            @{ success = $false; error = "No targets specified" } | ConvertTo-Json -Depth 3
             return
         }
-        $result = Clean-Installers -FilePaths $Targets
-        $result | ConvertTo-Json -Depth 5
+        # Split pipe-separated paths
+        $fileList = @($Targets -split '\|' | Where-Object { $_.Trim() -ne "" })
+        $result = Clean-Installers -FilePaths $fileList
+        @{
+            success = $true
+            data = $result
+        } | ConvertTo-Json -Depth 5
     }
 }

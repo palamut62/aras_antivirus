@@ -32,7 +32,7 @@ function createWindow() {
         frame: false,
         titleBarStyle: 'hidden',
         show: !startHidden,
-        icon: path_1.default.join(__dirname, '../../assets/icon.ico'),
+        icon: getAssetPath('icon.ico'),
         backgroundColor: '#0f1117',
         webPreferences: {
             preload: path_1.default.join(__dirname, '../preload/index.js'),
@@ -59,8 +59,24 @@ function createWindow() {
         mainWindow = null;
     });
 }
+function getAssetPath(filename) {
+    // In production: app.asar/assets/ ; In dev: project_root/assets/
+    const possiblePaths = [
+        path_1.default.join(__dirname, '../../assets', filename),
+        path_1.default.join(electron_1.app.getAppPath(), 'assets', filename),
+        path_1.default.join(process.resourcesPath || '', 'assets', filename),
+    ];
+    for (const p of possiblePaths) {
+        try {
+            if (require('fs').existsSync(p))
+                return p;
+        }
+        catch { }
+    }
+    return possiblePaths[0];
+}
 function createTray() {
-    const iconPath = path_1.default.join(__dirname, '../../assets/icon.ico');
+    const iconPath = getAssetPath('icon.ico');
     const icon = electron_1.nativeImage.createFromPath(iconPath);
     tray = new electron_1.Tray(icon.resize({ width: 16, height: 16 }));
     const contextMenu = electron_1.Menu.buildFromTemplate([
