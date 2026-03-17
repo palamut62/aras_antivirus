@@ -172,15 +172,20 @@ function registerIpcHandlers() {
         if (appId)
             args.push('-AppId', appId);
         const result = await (0, powershell_1.runPowerShell)('app-uninstaller.ps1', args, 'app-uninstall-' + action);
-        if (action === 'uninstall' && result.success) {
+        const psData = result.data?.data || result.data;
+        const unwrapped = { success: result.success && (result.data?.success !== false), data: psData, error: result.error || result.data?.error };
+        if ((action === 'uninstall' || action === 'force-uninstall') && unwrapped.success) {
             history_db_1.HistoryDB.add({
                 action: 'uninstall',
-                target: result.appName || appId || 'unknown',
-                details: `App uninstalled, ${result.leftoverCount || 0} leftovers found`,
+                target: psData?.appName || appId || 'unknown',
+                details: action === 'force-uninstall'
+                    ? `Force uninstalled, ${psData?.removedSize || 0} bytes removed`
+                    : `App uninstalled, ${psData?.leftoverCount || 0} leftovers found`,
+                sizeBytes: psData?.removedSize || psData?.leftoverSize || 0,
                 status: 'success',
             });
         }
-        return result;
+        return unwrapped;
     });
     // === SYSTEM OPTIMIZE ===
     electron_1.ipcMain.handle('system:optimize', async (_e, action, tasks) => {
@@ -188,16 +193,18 @@ function registerIpcHandlers() {
         if (tasks && tasks.length > 0)
             args.push('-Tasks', tasks.join(','));
         const result = await (0, powershell_1.runPowerShell)('system-optimize.ps1', args, 'sys-opt-' + action);
-        if (action === 'optimize' && result.success) {
+        const psData = result.data?.data || result.data;
+        const unwrapped = { success: result.success && (result.data?.success !== false), data: psData, error: result.error || result.data?.error };
+        if (action === 'optimize' && unwrapped.success) {
             history_db_1.HistoryDB.add({
                 action: 'optimize',
-                target: `${result.data?.completedCount || 0} tasks`,
-                details: `Optimization completed, ${result.data?.totalSizeFreed || 0} bytes freed`,
-                sizeBytes: result.data?.totalSizeFreed || 0,
+                target: `${psData?.completedCount || 0} tasks`,
+                details: `Optimization completed, ${psData?.totalSizeFreed || 0} bytes freed`,
+                sizeBytes: psData?.totalSizeFreed || 0,
                 status: 'success',
             });
         }
-        return result;
+        return unwrapped;
     });
     // === INSTALLER CLEANUP ===
     electron_1.ipcMain.handle('installer:cleanup', async (_e, action, targets) => {
@@ -205,16 +212,19 @@ function registerIpcHandlers() {
         if (targets && targets.length > 0)
             args.push('-Targets', targets.join('|'));
         const result = await (0, powershell_1.runPowerShell)('installer-cleanup.ps1', args, 'installer-' + action);
-        if (action === 'clean' && result.success) {
+        // PS script returns { success, data: { installers/cleaned } } — unwrap nested data
+        const psData = result.data?.data || result.data;
+        const unwrapped = { success: result.success && (result.data?.success !== false), data: psData, error: result.error || result.data?.error };
+        if (action === 'clean' && unwrapped.success) {
             history_db_1.HistoryDB.add({
                 action: 'clean',
-                target: `${result.data?.cleaned || 0} installer files`,
-                details: `Installer cleanup, ${result.data?.cleanedSize || 0} bytes freed`,
-                sizeBytes: result.data?.cleanedSize || 0,
+                target: `${psData?.cleaned || 0} installer files`,
+                details: `Installer cleanup, ${psData?.cleanedSize || 0} bytes freed`,
+                sizeBytes: psData?.cleanedSize || 0,
                 status: 'success',
             });
         }
-        return result;
+        return unwrapped;
     });
     // === SYSTEM ===
     electron_1.ipcMain.handle('status:get', async () => {

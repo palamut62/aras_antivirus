@@ -1,6 +1,6 @@
 param(
     [string]$Action = "status",
-    [string[]]$Tasks = @()
+    [string]$Tasks = ""
 )
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -228,11 +228,12 @@ switch ($Action) {
         } | ConvertTo-Json -Depth 5
     }
     "optimize" {
-        if ($Tasks.Count -eq 0) {
+        if (-not $Tasks -or $Tasks.Trim() -eq "") {
             @{ success = $false; error = "No tasks specified" } | ConvertTo-Json
             return
         }
-        $results = Run-Optimization -TaskList $Tasks
+        $taskList = @($Tasks -split ',' | Where-Object { $_.Trim() -ne "" } | ForEach-Object { $_.Trim() })
+        $results = Run-Optimization -TaskList $taskList
         $totalFreed = ($results | Where-Object { $_.sizeFreed } | Measure-Object -Property sizeFreed -Sum).Sum
         @{
             success = $true

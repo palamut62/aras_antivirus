@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Package, Search, Trash2, FolderSearch, Loader2, AlertTriangle } from 'lucide-react'
+import { Package, Search, Trash2, FolderSearch, Loader2, AlertTriangle, Bomb } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 
 interface AppInfo {
@@ -25,6 +25,7 @@ export default function AppUninstaller() {
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [uninstalling, setUninstalling] = useState<string | null>(null)
+  const [forceUninstalling, setForceUninstalling] = useState<string | null>(null)
   const [leftovers, setLeftovers] = useState<{ appName: string; items: Leftover[] } | null>(null)
   const [cleaningLeftovers, setCleaningLeftovers] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
@@ -67,6 +68,28 @@ export default function AppUninstaller() {
       setMessage({ text: tx('Kaldirma basarisiz', 'Uninstall failed'), type: 'error' })
     }
     setUninstalling(null)
+  }
+
+  const handleForceUninstall = async (app: AppInfo) => {
+    setForceUninstalling(app.id)
+    setMessage(null)
+    try {
+      const result = await window.moleAPI.appUninstaller('force-uninstall', app.id)
+      if (result.success) {
+        const data = result.data || result
+        setMessage({
+          text: `${app.name} ${tx('zorla kaldirildi', 'force uninstalled')} - ${formatSize(data.removedSize || 0)} ${tx('temizlendi', 'cleaned')}`,
+          type: 'success'
+        })
+        setApps(prev => prev.filter(a => a.id !== app.id))
+        setLeftovers(null)
+      } else {
+        setMessage({ text: result.error || tx('Zorla kaldirma basarisiz', 'Force uninstall failed'), type: 'error' })
+      }
+    } catch {
+      setMessage({ text: tx('Zorla kaldirma basarisiz', 'Force uninstall failed'), type: 'error' })
+    }
+    setForceUninstalling(null)
   }
 
   const handleFindLeftovers = async (app: AppInfo) => {
@@ -173,10 +196,15 @@ export default function AppUninstaller() {
                   className="p-2 rounded-lg hover:bg-mole-warning/20 text-mole-text-muted hover:text-mole-warning transition-colors">
                   <FolderSearch size={16} />
                 </button>
-                <button onClick={() => handleUninstall(app)} disabled={uninstalling === app.id}
+                <button onClick={() => handleUninstall(app)} disabled={uninstalling === app.id || forceUninstalling === app.id}
                   title={tx('Kaldir', 'Uninstall')}
                   className="p-2 rounded-lg hover:bg-mole-danger/20 text-mole-text-muted hover:text-mole-danger transition-colors disabled:opacity-50">
                   {uninstalling === app.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                </button>
+                <button onClick={() => handleForceUninstall(app)} disabled={uninstalling === app.id || forceUninstalling === app.id}
+                  title={tx('Zorla Kaldir', 'Force Uninstall')}
+                  className="p-2 rounded-lg hover:bg-red-600/20 text-mole-text-muted hover:text-red-500 transition-colors disabled:opacity-50">
+                  {forceUninstalling === app.id ? <Loader2 size={16} className="animate-spin" /> : <Bomb size={16} />}
                 </button>
               </div>
             </div>

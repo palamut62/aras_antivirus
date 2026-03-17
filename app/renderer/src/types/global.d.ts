@@ -1,4 +1,7 @@
 interface MoleAPI {
+  // Navigate
+  onNavigate: (cb: (route: string) => void) => () => void
+
   // Cleanup
   scanRun: () => Promise<any>
   cleanExecute: (categories: string[]) => Promise<any>

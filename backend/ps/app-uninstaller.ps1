@@ -223,6 +223,120 @@ switch ($Action) {
             error = $result.error
         } | ConvertTo-Json -Depth 5
     }
+    "force-uninstall" {
+        if (-not $AppId) {
+            @{ success = $false; error = "AppId required" } | ConvertTo-Json -Depth 3
+            return
+        }
+        $apps = Get-InstalledApps
+        $app = $apps | Where-Object { $_.id -eq $AppId }
+        if (-not $app) {
+            @{ success = $false; error = "App not found: $AppId" } | ConvertTo-Json -Depth 3
+            return
+        }
+        $appName = [string]$app.name
+        $errors = @()
+        $removedSize = [long]0
+
+        # 1. Kill related processes
+        $words = ($appName -split '\s+') | Where-Object { $_.Length -ge 3 } | ForEach-Object { $_ -replace '[^a-zA-Z0-9]', '' }
+        foreach ($w in $words) {
+            Get-Process | Where-Object { $_.ProcessName -like "*$w*" -or $_.MainWindowTitle -like "*$w*" } | ForEach-Object {
+                try { Stop-Process -Id $_.Id -Force -ErrorAction Stop } catch {}
+            }
+        }
+        Start-Sleep -Seconds 1
+
+        # 2. Try normal uninstall first (ignore errors)
+        $uninstStr = $app.quietUninstallString
+        if (-not $uninstStr) { $uninstStr = $app.uninstallString }
+        if ($uninstStr) {
+            try {
+                if ($uninstStr -match "msiexec" -and $uninstStr -match '\{[0-9A-Fa-f\-]+\}') {
+                    Start-Process "msiexec.exe" -ArgumentList "/x $($Matches[0]) /qn /norestart" -Wait -NoNewWindow -PassThru 2>$null | Out-Null
+                } else {
+                    Start-Process "cmd.exe" -ArgumentList "/c `"$uninstStr`" /S /silent /quiet /VERYSILENT /NORESTART" -Wait -NoNewWindow -PassThru 2>$null | Out-Null
+                }
+            } catch {}
+        }
+
+        # 3. Force remove install location
+        if ($app.installLocation -and (Test-Path $app.installLocation)) {
+            try {
+                $dirSize = (Get-ChildItem $app.installLocation -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+                Remove-Item -Path $app.installLocation -Recurse -Force -ErrorAction Stop
+                $removedSize += if ($dirSize) { [long]$dirSize } else { 0 }
+            } catch {
+                $errors += "Install folder: $($_.Exception.Message)"
+            }
+        }
+
+        # 4. Force remove all leftover folders
+        $leftovers = @(Find-AppLeftovers -AppName $appName)
+        foreach ($item in $leftovers) {
+            if (Test-Path $item.path) {
+                try {
+                    $removedSize += [long]$item.sizeBytes
+                    Remove-Item -Path $item.path -Recurse -Force -ErrorAction Stop
+                } catch {
+                    $errors += "$($item.path): $($_.Exception.Message)"
+                }
+            }
+        }
+
+        # 5. Remove registry entries
+        $regPaths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$AppId",
+            "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\$AppId",
+            "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$AppId"
+        )
+        foreach ($rp in $regPaths) {
+            if (Test-Path $rp) {
+                try { Remove-Item -Path $rp -Recurse -Force -ErrorAction Stop } catch {}
+            }
+        }
+
+        # 6. Clean Start Menu shortcuts
+        $startMenuPaths = @(
+            "$env:APPDATA\Microsoft\Windows\Start Menu\Programs",
+            "$env:ProgramData\Microsoft\Windows\Start Menu\Programs"
+        )
+        foreach ($sm in $startMenuPaths) {
+            Get-ChildItem $sm -Recurse -File -Filter "*.lnk" -ErrorAction SilentlyContinue | ForEach-Object {
+                $shell = New-Object -ComObject WScript.Shell
+                try {
+                    $shortcut = $shell.CreateShortcut($_.FullName)
+                    foreach ($w in $words) {
+                        if ($shortcut.TargetPath -like "*$w*" -or $_.Name -like "*$w*") {
+                            Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+                            break
+                        }
+                    }
+                } catch {}
+            }
+        }
+
+        # 7. Clean Desktop shortcuts
+        Get-ChildItem "$env:USERPROFILE\Desktop" -Filter "*.lnk" -ErrorAction SilentlyContinue | ForEach-Object {
+            foreach ($w in $words) {
+                if ($_.Name -like "*$w*") {
+                    Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+                    break
+                }
+            }
+        }
+
+        @{
+            success = $true
+            data = @{
+                appName = $appName
+                removedSize = $removedSize
+                leftoversCleaned = $leftovers.Count
+                errors = $errors
+                registryCleaned = $true
+            }
+        } | ConvertTo-Json -Depth 5
+    }
     "clean-leftovers" {
         if (-not $AppId) {
             @{ success = $false; error = "AppId (app name) required" } | ConvertTo-Json -Depth 3

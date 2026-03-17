@@ -74,8 +74,8 @@ if ($stats.fileCount -gt 0) {
         fileCount = $stats.fileCount
         riskLevel = "safe"
         importance = "low"
-        description = "Edge browser cache. Same as Chrome — safe to delete."
-        descriptionTr = "Edge onbellegi. Chrome gibi — silinmesi guvenlidir."
+        description = "Edge browser cache. Same as Chrome - safe to delete."
+        descriptionTr = "Edge onbellegi. Chrome gibi - silinmesi guvenlidir."
     }
 }
 
@@ -213,8 +213,8 @@ try {
             fileCount = $rbCount
             riskLevel = "review"
             importance = "medium"
-            description = "Deleted files in Recycle Bin. Check before emptying — files cannot be recovered!"
-            descriptionTr = "Geri Donusum Kutusundaki dosyalar. Bosaltmadan once kontrol edin — geri alinamaz!"
+            description = "Deleted files in Recycle Bin. Check before emptying - files cannot be recovered!"
+            descriptionTr = "Geri Donusum Kutusundaki dosyalar. Bosaltmadan once kontrol edin - geri alinamaz!"
         }
     }
 } catch {}

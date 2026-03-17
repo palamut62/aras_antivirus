@@ -71,6 +71,12 @@ const api = {
     dialogRespond: (id, buttonIndex) => electron_1.ipcRenderer.send('dialog:respond', id, buttonIndex),
     // Resource usage
     getResourceUsage: () => electron_1.ipcRenderer.invoke('system:resource-usage'),
+    // Navigate (from main process)
+    onNavigate: (cb) => {
+        const handler = (_e, route) => cb(route);
+        electron_1.ipcRenderer.on('navigate', handler);
+        return () => electron_1.ipcRenderer.removeListener('navigate', handler);
+    },
     // Window
     windowMinimize: () => electron_1.ipcRenderer.send('window:minimize'),
     windowMaximize: () => electron_1.ipcRenderer.send('window:maximize'),

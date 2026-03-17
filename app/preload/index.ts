@@ -87,6 +87,13 @@ const api = {
   // Resource usage
   getResourceUsage: () => ipcRenderer.invoke('system:resource-usage'),
 
+  // Navigate (from main process)
+  onNavigate: (cb: (route: string) => void) => {
+    const handler = (_e: any, route: string) => cb(route)
+    ipcRenderer.on('navigate', handler)
+    return () => ipcRenderer.removeListener('navigate', handler)
+  },
+
   // Window
   windowMinimize: () => ipcRenderer.send('window:minimize'),
   windowMaximize: () => ipcRenderer.send('window:maximize'),
