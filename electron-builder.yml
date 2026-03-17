@@ -1,0 +1,19 @@
+appId: com.aras.antivirus
+productName: Aras Antivirüs
+directories:
+  output: release
+  buildResources: assets
+files:
+  - dist/**/*
+  - backend/**/*
+  - package.json
+win:
+  target: nsis
+  icon: assets/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  runAfterFinish: true

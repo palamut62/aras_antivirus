@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6c5ce7"/>
+      <stop offset="100%" style="stop-color:#4a3cb5"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="url(#bg)"/>
+  <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="url(#shine)"/>
+
+  <!-- Mole body - stylized circle -->
+  <ellipse cx="256" cy="280" rx="130" ry="120" fill="#2d1f6b" opacity="0.3"/>
+
+  <!-- Shield shape for protection theme -->
+  <path d="M256 100 L356 160 L356 280 C356 350 310 400 256 420 C202 400 156 350 156 280 L156 160 Z"
+        fill="none" stroke="white" stroke-width="16" stroke-linejoin="round" opacity="0.9"/>
+
+  <!-- Magnifying glass inside shield -->
+  <circle cx="248" cy="250" r="55" fill="none" stroke="white" stroke-width="14" opacity="0.9"/>
+  <line x1="288" y1="290" x2="320" y2="322" stroke="white" stroke-width="14" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- Sparkle dots -->
+  <circle cx="230" cy="230" r="6" fill="white" opacity="0.8"/>
+  <circle cx="210" cy="255" r="4" fill="white" opacity="0.6"/>
+  <circle cx="260" cy="220" r="4" fill="white" opacity="0.6"/>
+
+  <!-- Broom/sweep accent lines at bottom -->
+  <line x1="200" y1="370" x2="240" y2="385" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="220" y1="365" x2="260" y2="380" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="240" y1="360" x2="280" y2="375" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="260" y1="365" x2="300" y2="380" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="280" y1="370" x2="312" y2="385" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+</svg>
