@@ -1,6 +1,6 @@
 {
   "name": "aras-antivirus",
-  "version": "1.1.0",
+  "version": "1.2.2",
   "description": "Aras Antivirüs — Geliştiriciler için güvenlik ve sistem temizleme aracı",
   "main": "dist/main/index.js",
   "scripts": {
