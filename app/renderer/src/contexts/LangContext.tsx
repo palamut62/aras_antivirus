@@ -25,6 +25,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'nav.systemStatus': { tr: 'Sistem Durumu', en: 'System Status' },
   'nav.logs': { tr: 'Gecmis', en: 'Logs' },
   'nav.settings': { tr: 'Ayarlar', en: 'Settings' },
+  'nav.autopilot': { tr: 'Autopilot', en: 'Autopilot' },
   'nav.appUninstaller': { tr: 'Program Kaldirici', en: 'App Uninstaller' },
   'nav.systemOptimize': { tr: 'Sistem Optimize', en: 'System Optimize' },
   'nav.installerCleanup': { tr: 'Installer Temizle', en: 'Installer Cleanup' },

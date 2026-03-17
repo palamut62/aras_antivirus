@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Sparkles, Code2, HardDrive, Activity, FileText, Settings,
   ShieldCheck, Cpu, FolderLock, GitBranch, Eye, Globe, Usb, Wifi,
   ChevronLeft, ChevronRight, ChevronDown, HelpCircle, Bug, FolderOpen,
-  Package, Zap, FileBox,
+  Package, Zap, FileBox, Bot,
 } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 
@@ -16,6 +16,7 @@ const cleanupItems = [
 ]
 
 const securityItems = [
+  { to: '/autopilot', icon: Bot, labelKey: 'nav.autopilot' },
   { to: '/security-scan', icon: ShieldCheck, labelKey: 'nav.securityScan' },
   { to: '/realtime', icon: Eye, labelKey: 'nav.liveProtection' },
   { to: '/web-protection', icon: Globe, labelKey: 'nav.webProtection' },

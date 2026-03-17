@@ -1,7 +1,6 @@
 param(
     [string]$Action = "list",
-    [string]$AppId = "",
-    [switch]$IncludeLeftovers
+    [string]$AppId = ""
 )
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -16,62 +15,71 @@ function Get-InstalledApps {
     foreach ($path in $regPaths) {
         Get-ItemProperty $path 2>$null | Where-Object { $_.DisplayName -and $_.DisplayName.Trim() -ne "" } | ForEach-Object {
             $size = 0
-            if ($_.EstimatedSize) { $size = [int]$_.EstimatedSize * 1024 }
+            if ($_.EstimatedSize) { $size = [int64]$_.EstimatedSize * 1024 }
+
+            # Determine type
+            $type = "app"
+            $dn = $_.DisplayName.ToLower()
+            if ($dn -match "driver|runtime|redistribut|\.net|visual c\+\+|update for") { $type = "system" }
+            elseif ($dn -match "sdk|tools|build|kit|framework") { $type = "dev" }
+
             $apps += @{
                 id = ($_.PSChildName -replace '[{}]','')
-                name = $_.DisplayName
-                publisher = if ($_.Publisher) { $_.Publisher } else { "" }
-                version = if ($_.DisplayVersion) { $_.DisplayVersion } else { "" }
-                installDate = if ($_.InstallDate) { $_.InstallDate } else { "" }
-                installLocation = if ($_.InstallLocation) { $_.InstallLocation } else { "" }
-                uninstallString = if ($_.UninstallString) { $_.UninstallString } else { "" }
-                sizeBytes = $size
+                name = [string]$_.DisplayName
+                publisher = if ($_.Publisher) { [string]$_.Publisher } else { "" }
+                version = if ($_.DisplayVersion) { [string]$_.DisplayVersion } else { "" }
+                installDate = if ($_.InstallDate) { [string]$_.InstallDate } else { "" }
+                installLocation = if ($_.InstallLocation) { [string]$_.InstallLocation } else { "" }
+                uninstallString = if ($_.UninstallString) { [string]$_.UninstallString } else { "" }
+                quietUninstallString = if ($_.QuietUninstallString) { [string]$_.QuietUninstallString } else { "" }
+                sizeBytes = [long]$size
                 isSystemComponent = if ($_.SystemComponent -eq 1) { $true } else { $false }
+                type = $type
             }
         }
     }
-    return $apps | Sort-Object { $_.name }
+    # Deduplicate by name
+    $seen = @{}
+    $unique = @()
+    foreach ($a in $apps) {
+        $key = $a.name.ToLower().Trim()
+        if (-not $seen.ContainsKey($key)) {
+            $seen[$key] = $true
+            $unique += $a
+        }
+    }
+    return $unique | Sort-Object { $_.name }
 }
 
 function Find-AppLeftovers {
     param([string]$AppName)
     $leftovers = @()
-    $cleanName = $AppName -replace '[^a-zA-Z0-9]', '*'
+    # Extract key words from app name (at least 4 chars each)
+    $words = ($AppName -split '\s+') | Where-Object { $_.Length -ge 4 } | ForEach-Object { $_ -replace '[^a-zA-Z0-9]', '' }
+    if ($words.Count -eq 0) { $words = @($AppName -replace '[^a-zA-Z0-9]', '') }
+
     $searchPaths = @(
         "$env:APPDATA",
         "$env:LOCALAPPDATA",
         "$env:PROGRAMDATA",
-        "$env:LOCALAPPDATA\Temp",
         "$env:USERPROFILE\AppData\LocalLow"
     )
     foreach ($base in $searchPaths) {
         if (-not (Test-Path $base)) { continue }
-        Get-ChildItem -Path $base -Directory -ErrorAction SilentlyContinue | Where-Object {
-            $_.Name -like "*$cleanName*" -or $_.Name -like "*$AppName*"
-        } | ForEach-Object {
-            $dirSize = (Get-ChildItem $_.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
-            $leftovers += @{
-                path = $_.FullName
-                type = "folder"
-                sizeBytes = if ($dirSize) { [long]$dirSize } else { 0 }
-                location = $base
+        Get-ChildItem -Path $base -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $dirName = $_.Name.ToLower()
+            $match = $false
+            foreach ($w in $words) {
+                if ($dirName -like "*$($w.ToLower())*") { $match = $true; break }
             }
-        }
-    }
-    # Registry leftovers
-    $regSearchPaths = @(
-        "HKCU:\SOFTWARE",
-        "HKLM:\SOFTWARE"
-    )
-    foreach ($rp in $regSearchPaths) {
-        Get-ChildItem -Path $rp -ErrorAction SilentlyContinue | Where-Object {
-            $_.PSChildName -like "*$AppName*"
-        } | ForEach-Object {
-            $leftovers += @{
-                path = $_.Name
-                type = "registry"
-                sizeBytes = 0
-                location = $rp
+            if ($match) {
+                $dirSize = (Get-ChildItem $_.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+                $leftovers += @{
+                    path = [string]$_.FullName
+                    type = "folder"
+                    sizeBytes = if ($dirSize) { [long]$dirSize } else { [long]0 }
+                    location = [string]$base
+                }
             }
         }
     }
@@ -85,12 +93,14 @@ function Uninstall-App {
     if (-not $app) {
         return @{ success = $false; error = "App not found: $Id" }
     }
-    $uninstStr = $app.uninstallString
+
+    # Try quiet uninstall string first
+    $uninstStr = $app.quietUninstallString
+    if (-not $uninstStr) { $uninstStr = $app.uninstallString }
     if (-not $uninstStr) {
         return @{ success = $false; error = "No uninstall command for: $($app.name)" }
     }
-    # Find leftovers before uninstall
-    $leftoversBefore = Find-AppLeftovers -AppName $app.name
+
     try {
         if ($uninstStr -match "msiexec") {
             $productCode = ""
@@ -98,25 +108,52 @@ function Uninstall-App {
                 $productCode = $Matches[0]
             }
             if ($productCode) {
-                Start-Process "msiexec.exe" -ArgumentList "/x $productCode /qn /norestart" -Wait -NoNewWindow
+                $p = Start-Process "msiexec.exe" -ArgumentList "/x $productCode /qn /norestart" -Wait -NoNewWindow -PassThru
             } else {
-                Start-Process "cmd.exe" -ArgumentList "/c $uninstStr /qn /norestart" -Wait -NoNewWindow
+                $clean = $uninstStr -replace '"', ''
+                $p = Start-Process "cmd.exe" -ArgumentList "/c `"$clean`" /qn /norestart" -Wait -NoNewWindow -PassThru
             }
         } else {
-            $parts = $uninstStr -split ' ', 2
-            $exe = $parts[0] -replace '"', ''
-            $args = if ($parts.Count -gt 1) { "$($parts[1]) /S /silent /quiet" } else { "/S /silent /quiet" }
-            Start-Process $exe -ArgumentList $args -Wait -NoNewWindow
+            # Parse executable and args
+            if ($uninstStr.StartsWith('"')) {
+                $endQuote = $uninstStr.IndexOf('"', 1)
+                if ($endQuote -gt 0) {
+                    $exe = $uninstStr.Substring(1, $endQuote - 1)
+                    $existingArgs = $uninstStr.Substring($endQuote + 1).Trim()
+                } else {
+                    $exe = $uninstStr -replace '"', ''
+                    $existingArgs = ""
+                }
+            } else {
+                $parts = $uninstStr -split ' ', 2
+                $exe = $parts[0]
+                $existingArgs = if ($parts.Count -gt 1) { $parts[1] } else { "" }
+            }
+
+            # Add silent flags
+            $silentArgs = "$existingArgs /S /silent /quiet /VERYSILENT /NORESTART"
+            $silentArgs = $silentArgs.Trim()
+
+            if (Test-Path $exe) {
+                $p = Start-Process $exe -ArgumentList $silentArgs -Wait -NoNewWindow -PassThru
+            } else {
+                # Fallback: run the whole string via cmd
+                $p = Start-Process "cmd.exe" -ArgumentList "/c `"$uninstStr`" /S /silent /quiet" -Wait -NoNewWindow -PassThru
+            }
         }
+
+        # Find leftovers after uninstall
+        $leftoversAfter = Find-AppLeftovers -AppName $app.name
+
         return @{
             success = $true
-            appName = $app.name
-            leftovers = $leftoversBefore
-            leftoverCount = $leftoversBefore.Count
-            leftoverSize = ($leftoversBefore | Measure-Object -Property sizeBytes -Sum).Sum
+            appName = [string]$app.name
+            leftovers = $leftoversAfter
+            leftoverCount = $leftoversAfter.Count
+            leftoverSize = ($leftoversAfter | Measure-Object -Property sizeBytes -Sum).Sum
         }
     } catch {
-        return @{ success = $false; error = $_.Exception.Message }
+        return @{ success = $false; error = [string]$_.Exception.Message }
     }
 }
 
@@ -124,11 +161,11 @@ function Clean-Leftovers {
     param([string]$AppName)
     $leftovers = Find-AppLeftovers -AppName $AppName
     $cleaned = 0
-    $cleanedSize = 0
+    $cleanedSize = [long]0
     foreach ($item in $leftovers) {
-        if ($item.type -eq "folder") {
+        if ($item.type -eq "folder" -and (Test-Path $item.path)) {
             try {
-                $cleanedSize += $item.sizeBytes
+                $cleanedSize += [long]$item.sizeBytes
                 Remove-Item -Path $item.path -Recurse -Force -ErrorAction Stop
                 $cleaned++
             } catch {}
@@ -146,7 +183,7 @@ function Clean-Leftovers {
 switch ($Action) {
     "list" {
         $apps = Get-InstalledApps
-        $userApps = $apps | Where-Object { -not $_.isSystemComponent }
+        $userApps = @($apps | Where-Object { -not $_.isSystemComponent })
         @{
             success = $true
             data = @{
@@ -158,17 +195,17 @@ switch ($Action) {
     }
     "leftovers" {
         if (-not $AppId) {
-            @{ success = $false; error = "AppId required" } | ConvertTo-Json
+            @{ success = $false; error = "AppId required" } | ConvertTo-Json -Depth 3
             return
         }
         $apps = Get-InstalledApps
         $app = $apps | Where-Object { $_.id -eq $AppId }
-        $appName = if ($app) { $app.name } else { $AppId }
-        $leftovers = Find-AppLeftovers -AppName $appName
+        $appName = if ($app) { [string]$app.name } else { $AppId }
+        $leftovers = @(Find-AppLeftovers -AppName $appName)
         @{
             success = $true
             data = @{
-                appName = $appName
+                appName = [string]$appName
                 leftovers = $leftovers
                 totalSize = ($leftovers | Measure-Object -Property sizeBytes -Sum).Sum
             }
@@ -176,18 +213,25 @@ switch ($Action) {
     }
     "uninstall" {
         if (-not $AppId) {
-            @{ success = $false; error = "AppId required" } | ConvertTo-Json
+            @{ success = $false; error = "AppId required" } | ConvertTo-Json -Depth 3
             return
         }
         $result = Uninstall-App -Id $AppId
-        $result | ConvertTo-Json -Depth 5
+        @{
+            success = $result.success
+            data = $result
+            error = $result.error
+        } | ConvertTo-Json -Depth 5
     }
     "clean-leftovers" {
         if (-not $AppId) {
-            @{ success = $false; error = "AppId (app name) required" } | ConvertTo-Json
+            @{ success = $false; error = "AppId (app name) required" } | ConvertTo-Json -Depth 3
             return
         }
         $result = Clean-Leftovers -AppName $AppId
-        $result | ConvertTo-Json -Depth 5
+        @{
+            success = $result.success
+            data = $result
+        } | ConvertTo-Json -Depth 5
     }
 }

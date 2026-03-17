@@ -1,4 +1,4 @@
-import { Sparkles, Check, StopCircle } from 'lucide-react'
+import { Sparkles, Check, StopCircle, Info, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 import { useScanStore } from '../stores/scanStore'
 
@@ -8,15 +8,19 @@ interface Category {
   fileCount: number
   sizeBytes: number
   riskLevel: string
+  importance: string
+  description: string
+  descriptionTr: string
   selected: boolean
 }
 
 export default function DeepClean() {
-  const { tx } = useLang()
+  const { tx, lang } = useLang()
   const { scanning, cleaning, categories, cleanResult, taskId } = useScanStore(s => s.deepClean)
   const set = useScanStore(s => s.setDeepClean)
 
   const formatSize = (bytes: number) => {
+    if (!bytes || bytes <= 0) return '0 KB'
     if (bytes >= 1e9) return (bytes / 1e9).toFixed(2) + ' GB'
     if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB'
     return (bytes / 1e3).toFixed(0) + ' KB'
@@ -62,6 +66,26 @@ export default function DeepClean() {
   }
 
   const totalSelected = categories.filter((c: Category) => c.selected).reduce((s: number, c: Category) => s + c.sizeBytes, 0)
+  const safeCount = categories.filter((c: Category) => c.riskLevel === 'safe').length
+  const reviewCount = categories.filter((c: Category) => c.riskLevel === 'review').length
+
+  const importanceIcon = (imp: string) => {
+    switch (imp) {
+      case 'low': return <ShieldCheck size={12} className="text-mole-safe" />
+      case 'medium': return <Info size={12} className="text-mole-warning" />
+      case 'high': return <AlertTriangle size={12} className="text-mole-danger" />
+      default: return <ShieldCheck size={12} className="text-mole-safe" />
+    }
+  }
+
+  const importanceLabel = (imp: string) => {
+    switch (imp) {
+      case 'low': return tx('Guvenli sil', 'Safe to delete')
+      case 'medium': return tx('Kontrol et', 'Review first')
+      case 'high': return tx('Dikkatli ol', 'Be careful')
+      default: return tx('Guvenli', 'Safe')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -69,13 +93,13 @@ export default function DeepClean() {
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Sparkles size={24} className="text-mole-accent" /> {tx('Derin Temizlik', 'Deep Clean')}
         </h1>
-        <p className="text-mole-text-muted mt-1">{tx('Geri kazanılabilir sistem dosyalarını tara ve temizle', 'Scan and clean reclaimable system files')}</p>
+        <p className="text-mole-text-muted mt-1">{tx('Geri kazanilabilir sistem dosyalarini tara ve temizle', 'Scan and clean reclaimable system files')}</p>
       </div>
 
       <div className="flex gap-2">
         <button onClick={handleScan} disabled={scanning || cleaning}
           className="px-6 py-2.5 bg-mole-accent hover:bg-mole-accent-hover disabled:opacity-50 rounded-lg font-medium transition-colors">
-          {scanning ? tx('Taranıyor...', 'Scanning...') : tx('Sistemi Tara', 'Scan System')}
+          {scanning ? tx('Taraniyor...', 'Scanning...') : tx('Sistemi Tara', 'Scan System')}
         </button>
         {(scanning || cleaning) && (
           <button onClick={handleStop}
@@ -87,20 +111,45 @@ export default function DeepClean() {
 
       {categories.length > 0 && (
         <>
+          {/* Summary */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-mole-surface rounded-lg p-3 border border-mole-border text-center">
+              <p className="text-xs text-mole-text-muted">{tx('Toplam', 'Total')}</p>
+              <p className="text-lg font-bold">{categories.length} {tx('kategori', 'categories')}</p>
+            </div>
+            <div className="bg-mole-safe/5 rounded-lg p-3 border border-mole-safe/20 text-center">
+              <p className="text-xs text-mole-safe">{tx('Guvenli', 'Safe')}</p>
+              <p className="text-lg font-bold text-mole-safe">{safeCount}</p>
+            </div>
+            <div className="bg-mole-warning/5 rounded-lg p-3 border border-mole-warning/20 text-center">
+              <p className="text-xs text-mole-warning">{tx('Incelenmeli', 'Review')}</p>
+              <p className="text-lg font-bold text-mole-warning">{reviewCount}</p>
+            </div>
+          </div>
+
           <div className="space-y-2">
             {categories.map((cat: Category) => (
               <label key={cat.id}
-                className="flex items-center gap-4 p-4 bg-mole-surface rounded-lg border border-mole-border cursor-pointer hover:bg-mole-bg/50 transition-colors">
-                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                className="flex items-start gap-4 p-4 bg-mole-surface rounded-lg border border-mole-border cursor-pointer hover:bg-mole-bg/50 transition-colors">
+                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 mt-0.5 ${
                   cat.selected ? 'bg-mole-accent border-mole-accent' : 'border-mole-border'
                 }`} onClick={() => toggleCategory(cat.id)}>
                   {cat.selected && <Check size={14} />}
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium">{cat.label}</p>
-                  <p className="text-xs text-mole-text-muted">{cat.fileCount} {tx('dosya', 'files')}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{cat.label}</p>
+                    <span className="flex items-center gap-1 text-[10px]">
+                      {importanceIcon(cat.importance)}
+                      {importanceLabel(cat.importance)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-mole-text-muted mt-0.5">
+                    {lang === 'tr' ? (cat.descriptionTr || cat.description) : cat.description}
+                  </p>
+                  <p className="text-xs text-mole-text-muted mt-0.5">{cat.fileCount} {tx('dosya', 'files')}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <p className="font-medium">{formatSize(cat.sizeBytes)}</p>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
                     cat.riskLevel === 'safe' ? 'bg-mole-safe/20 text-mole-safe' :
@@ -113,10 +162,10 @@ export default function DeepClean() {
           </div>
 
           <div className="flex items-center justify-between bg-mole-surface rounded-lg p-4 border border-mole-border">
-            <p>{tx('Seçili', 'Selected')}: <span className="font-bold text-mole-accent">{formatSize(totalSelected)}</span></p>
+            <p>{tx('Secili', 'Selected')}: <span className="font-bold text-mole-accent">{formatSize(totalSelected)}</span></p>
             <button onClick={handleClean} disabled={cleaning || totalSelected === 0}
               className="px-6 py-2 bg-mole-danger hover:bg-mole-danger/80 disabled:opacity-50 rounded-lg font-medium transition-colors">
-              {cleaning ? tx('Temizleniyor...', 'Cleaning...') : tx('Seçilenleri Temizle', 'Clean Selected')}
+              {cleaning ? tx('Temizleniyor...', 'Cleaning...') : tx('Secilenleri Temizle', 'Clean Selected')}
             </button>
           </div>
         </>
@@ -124,8 +173,8 @@ export default function DeepClean() {
 
       {cleanResult && (
         <div className={`p-4 rounded-lg border ${cleanResult.success ? 'bg-mole-safe/10 border-mole-safe/30' : 'bg-mole-danger/10 border-mole-danger/30'}`}>
-          <p className="font-medium">{cleanResult.success ? tx('Temizlik tamamlandı!', 'Cleanup completed!') : tx('Temizlik başarısız', 'Cleanup failed')}</p>
-          {cleanResult.data?.sizeFreed && <p className="text-sm text-mole-text-muted mt-1">{tx('Kazanılan', 'Freed')}: {formatSize(cleanResult.data.sizeFreed)}</p>}
+          <p className="font-medium">{cleanResult.success ? tx('Temizlik tamamlandi!', 'Cleanup completed!') : tx('Temizlik basarisiz', 'Cleanup failed')}</p>
+          {cleanResult.data?.sizeFreed && <p className="text-sm text-mole-text-muted mt-1">{tx('Kazanilan', 'Freed')}: {formatSize(cleanResult.data.sizeFreed)}</p>}
         </div>
       )}
     </div>

@@ -21,6 +21,7 @@ import WebProtection from './pages/WebProtection'
 import UsbMonitor from './pages/UsbMonitor'
 import NetworkMonitor from './pages/NetworkMonitor'
 import Help from './pages/Help'
+import Autopilot from './pages/Autopilot'
 import AppUninstaller from './pages/AppUninstaller'
 import SystemOptimize from './pages/SystemOptimize'
 import InstallerCleanup from './pages/InstallerCleanup'
@@ -55,6 +56,7 @@ export default function App() {
                 <Route path="/logs" element={<Logs />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/file-explorer" element={<FileExplorer />} />
+                <Route path="/autopilot" element={<Autopilot />} />
                 <Route path="/app-uninstaller" element={<AppUninstaller />} />
                 <Route path="/system-optimize" element={<SystemOptimize />} />
                 <Route path="/installer-cleanup" element={<InstallerCleanup />} />

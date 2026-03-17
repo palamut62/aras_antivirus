@@ -55,8 +55,9 @@ export default function AppUninstaller() {
       const result = await window.moleAPI.appUninstaller('uninstall', app.id)
       if (result.success) {
         setMessage({ text: `${app.name} ${tx('kaldirildi', 'uninstalled')}`, type: 'success' })
-        if (result.leftovers && result.leftovers.length > 0) {
-          setLeftovers({ appName: app.name, items: result.leftovers })
+        const data = result.data || result
+        if (data.leftovers && data.leftovers.length > 0) {
+          setLeftovers({ appName: app.name, items: data.leftovers })
         }
         setApps(prev => prev.filter(a => a.id !== app.id))
       } else {
@@ -84,7 +85,8 @@ export default function AppUninstaller() {
     try {
       const result = await window.moleAPI.appUninstaller('clean-leftovers', leftovers.appName)
       if (result.success) {
-        setMessage({ text: `${result.cleaned} ${tx('artik dosya temizlendi', 'leftover files cleaned')}`, type: 'success' })
+        const data = result.data || result
+        setMessage({ text: `${data.cleaned || 0} ${tx('artik dosya temizlendi', 'leftover files cleaned')}`, type: 'success' })
         setLeftovers(null)
       }
     } catch { /* */ }
