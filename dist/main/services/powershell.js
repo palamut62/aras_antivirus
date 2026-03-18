@@ -35,7 +35,9 @@ function runPowerShell(scriptName, args = [], taskId) {
 }
 function runPowerShellInternal(scriptName, args = [], taskId) {
     return new Promise((resolve) => {
-        const scriptPath = path_1.default.join(__dirname, '../../../backend/ps', scriptName);
+        // In production, backend/ is in app.asar.unpacked; in dev, it's in project root
+        const basePath = __dirname.replace('app.asar', 'app.asar.unpacked');
+        const scriptPath = path_1.default.join(basePath, '../../../backend/ps', scriptName);
         const psArgs = [
             '-ExecutionPolicy', 'Bypass',
             '-NoProfile',

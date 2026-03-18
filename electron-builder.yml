@@ -8,6 +8,8 @@ files:
   - backend/**/*
   - assets/**/*
   - package.json
+asarUnpack:
+  - backend/**/*
 win:
   target: nsis
   icon: assets/icon.ico
