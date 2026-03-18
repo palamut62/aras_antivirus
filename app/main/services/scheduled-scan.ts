@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, Notification } from 'electron'
 import { runPowerShell } from './powershell'
 import { SettingsService } from './settings'
 import { HistoryDB } from './history-db'
@@ -20,7 +20,31 @@ function tx(tr: string, en: string): string {
 
 function sendBanner(data: { type: string; title: string; message?: string; action?: { label: string; route: string } }) {
   const win = mainWindowRef || BrowserWindow.getAllWindows()[0]
-  if (win) win.webContents.send('banner:notify', data)
+
+  const isVisible = !!(win && win.isVisible() && !win.isMinimized())
+
+  if (isVisible && win) {
+    win.webContents.send('banner:notify', data)
+  } else {
+    // Pencere kapalı → native toast
+    const toast = new Notification({
+      title: `Aras Antivirüs - ${data.title}`,
+      body: data.message || '',
+    })
+    if (data.action && win) {
+      toast.on('click', () => {
+        win.show()
+        win.focus()
+        win.webContents.send('navigate', data.action!.route)
+      })
+    }
+    toast.show()
+
+    try {
+      const { addTrayLog } = require('../index')
+      addTrayLog(data.title)
+    } catch {}
+  }
 }
 
 async function runScheduledScan() {
