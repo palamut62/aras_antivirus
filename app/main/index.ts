@@ -78,7 +78,12 @@ function getAssetPath(filename: string): string {
   return possiblePaths[0]
 }
 
-// --- Activity log for tray menu (son işlemler) ---
+// --- Dil yardımcısı ---
+function tx(tr: string, en: string): string {
+  try { return SettingsService.get().language === 'en' ? en : tr } catch { return tr }
+}
+
+// --- Activity log for tray menu ---
 interface TrayLogEntry {
   time: string
   text: string
@@ -100,39 +105,39 @@ function updateTrayMenu() {
   const guardActive = isGuardRunning()
   const settings = SettingsService.get()
 
+  const onOff = (v: boolean) => v ? tx('✅ Açık', '✅ On') : tx('❌ Kapalı', '❌ Off')
   const statusItems: Electron.MenuItemConstructorOptions[] = [
     { label: 'Aras Antivirüs v1.5.1', enabled: false },
     { type: 'separator' },
-    { label: `Canlı Koruma: ${settings.liveProtection ? '✅ Açık' : '❌ Kapalı'}`, enabled: false },
-    { label: `Arka Plan Koruma: ${guardActive ? '✅ Çalışıyor' : '⏹ Durdu'}`, enabled: false },
-    { label: `Zamanlanmış Tarama: ${settings.scheduledScan ? '✅ Açık' : '❌ Kapalı'}`, enabled: false },
+    { label: `${tx('Canlı Koruma', 'Live Protection')}: ${onOff(settings.liveProtection)}`, enabled: false },
+    { label: `${tx('Arka Plan Koruma', 'Background Guard')}: ${guardActive ? tx('✅ Çalışıyor', '✅ Running') : tx('⏹ Durdu', '⏹ Stopped')}`, enabled: false },
+    { label: `${tx('Zamanlanmış Tarama', 'Scheduled Scan')}: ${onOff(settings.scheduledScan)}`, enabled: false },
     { type: 'separator' },
   ]
 
   const actionItems: Electron.MenuItemConstructorOptions[] = [
     {
-      label: 'Göster',
+      label: tx('Göster', 'Show'),
       click: () => { mainWindow?.show(); mainWindow?.focus() },
     },
     {
-      label: 'Hızlı Tarama',
+      label: tx('Hızlı Tarama', 'Quick Scan'),
       click: () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send('navigate', '/security-scan') },
     },
     {
-      label: 'Canlı Koruma',
+      label: tx('Canlı Koruma', 'Live Protection'),
       click: () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send('navigate', '/realtime') },
     },
     { type: 'separator' },
     guardActive
-      ? { label: '⏹ Arka Plan Korumayı Durdur', click: () => { stopBackgroundGuard(); addTrayLog('Arka plan koruma durduruldu'); } }
-      : { label: '▶ Arka Plan Korumayı Başlat', click: () => { startBackgroundGuard(); addTrayLog('Arka plan koruma başlatıldı'); } },
+      ? { label: tx('⏹ Arka Plan Korumayı Durdur', '⏹ Stop Background Guard'), click: () => { stopBackgroundGuard(); addTrayLog(tx('Arka plan koruma durduruldu', 'Background guard stopped')); } }
+      : { label: tx('▶ Arka Plan Korumayı Başlat', '▶ Start Background Guard'), click: () => { startBackgroundGuard(); addTrayLog(tx('Arka plan koruma başlatıldı', 'Background guard started')); } },
     { type: 'separator' },
   ]
 
-  // Son işlemler (loglar)
   const logItems: Electron.MenuItemConstructorOptions[] = []
   if (trayActivityLog.length > 0) {
-    logItems.push({ label: '📋 Son İşlemler', enabled: false })
+    logItems.push({ label: tx('📋 Son İşlemler', '📋 Recent Activity'), enabled: false })
     for (const entry of trayActivityLog.slice(0, 5)) {
       logItems.push({ label: `  ${entry.time} - ${entry.text}`, enabled: false })
     }
@@ -141,7 +146,7 @@ function updateTrayMenu() {
 
   const exitItem: Electron.MenuItemConstructorOptions[] = [
     {
-      label: 'Çıkış',
+      label: tx('Çıkış', 'Exit'),
       click: () => { (app as any).isQuitting = true; app.quit() },
     },
   ]
@@ -153,7 +158,7 @@ function updateTrayMenu() {
     ...exitItem,
   ])
 
-  const guardStatus = guardActive ? 'Koruma Aktif' : 'Koruma Pasif'
+  const guardStatus = guardActive ? tx('Koruma Aktif', 'Protection Active') : tx('Koruma Pasif', 'Protection Inactive')
   tray.setToolTip(`Aras Antivirüs - ${guardStatus}`)
   tray.setContextMenu(contextMenu)
 }
@@ -196,8 +201,8 @@ if (!gotTheLock) {
 
     // Guard control
     ipcMain.handle('guard:control', async (_e, action: string) => {
-      if (action === 'start') { startBackgroundGuard(); addTrayLog('Arka plan koruma başlatıldı'); return { running: true } }
-      if (action === 'stop') { stopBackgroundGuard(); addTrayLog('Arka plan koruma durduruldu'); return { running: false } }
+      if (action === 'start') { startBackgroundGuard(); addTrayLog(tx('Arka plan koruma başlatıldı', 'Background guard started')); return { running: true } }
+      if (action === 'stop') { stopBackgroundGuard(); addTrayLog(tx('Arka plan koruma durduruldu', 'Background guard stopped')); return { running: false } }
       return { running: isGuardRunning() }
     })
 
@@ -222,13 +227,13 @@ if (!gotTheLock) {
     if (settings.autoStart) setupAutostart()
     if (settings.liveProtection) {
       startBackgroundGuard()
-      addTrayLog('Arka plan koruma otomatik başlatıldı')
+      addTrayLog(tx('Arka plan koruma otomatik başlatıldı', 'Background guard auto-started'))
     }
     if (settings.scheduledScan) {
       startScheduledScan(mainWindow!)
-      addTrayLog('Zamanlanmış tarama aktif')
+      addTrayLog(tx('Zamanlanmış tarama aktif', 'Scheduled scan active'))
     }
-    addTrayLog('Aras Antivirüs başlatıldı')
+    addTrayLog(tx('Aras Antivirüs başlatıldı', 'Aras Antivirus started'))
     log.info('Aras Antivirüs started', { liveProtection: settings.liveProtection, autoStart: settings.autoStart, scheduledScan: settings.scheduledScan })
   })
 
