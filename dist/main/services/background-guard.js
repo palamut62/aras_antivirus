@@ -189,7 +189,7 @@ async function askUserAboutThreat(threat) {
     // Tray log'a ekle
     try {
         const { addTrayLog } = require('../index');
-        addTrayLog(`Tehdit karantinaya alındı: ${threat.fileName}`);
+        addTrayLog(tx(`Tehdit karantinaya alındı: ${threat.fileName}`, `Threat quarantined: ${threat.fileName}`));
     }
     catch { }
     // Karantina ID'sini listeden bulacağız (aşağıda)

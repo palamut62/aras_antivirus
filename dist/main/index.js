@@ -150,7 +150,7 @@ function updateTrayMenu() {
         ...logItems,
         ...exitItem,
     ]);
-    const guardStatus = guardActive ? 'Koruma Aktif' : 'Koruma Pasif';
+    const guardStatus = guardActive ? tx('Koruma Aktif', 'Protection Active') : tx('Koruma Pasif', 'Protection Inactive');
     tray.setToolTip(`Aras Antivirüs - ${guardStatus}`);
     tray.setContextMenu(contextMenu);
 }
@@ -191,12 +191,12 @@ else {
         electron_1.ipcMain.handle('guard:control', async (_e, action) => {
             if (action === 'start') {
                 (0, background_guard_1.startBackgroundGuard)();
-                addTrayLog('Arka plan koruma başlatıldı');
+                addTrayLog(tx('Arka plan koruma başlatıldı', 'Background guard started'));
                 return { running: true };
             }
             if (action === 'stop') {
                 (0, background_guard_1.stopBackgroundGuard)();
-                addTrayLog('Arka plan koruma durduruldu');
+                addTrayLog(tx('Arka plan koruma durduruldu', 'Background guard stopped'));
                 return { running: false };
             }
             return { running: (0, background_guard_1.isGuardRunning)() };
@@ -222,13 +222,13 @@ else {
             setupAutostart();
         if (settings.liveProtection) {
             (0, background_guard_1.startBackgroundGuard)();
-            addTrayLog('Arka plan koruma otomatik başlatıldı');
+            addTrayLog(tx('Arka plan koruma otomatik başlatıldı', 'Background guard auto-started'));
         }
         if (settings.scheduledScan) {
             (0, scheduled_scan_1.startScheduledScan)(mainWindow);
-            addTrayLog('Zamanlanmış tarama aktif');
+            addTrayLog(tx('Zamanlanmış tarama aktif', 'Scheduled scan active'));
         }
-        addTrayLog('Aras Antivirüs başlatıldı');
+        addTrayLog(tx('Aras Antivirüs başlatıldı', 'Aras Antivirus started'));
         electron_log_1.default.info('Aras Antivirüs started', { liveProtection: settings.liveProtection, autoStart: settings.autoStart, scheduledScan: settings.scheduledScan });
     });
     electron_1.app.on('window-all-closed', () => { });

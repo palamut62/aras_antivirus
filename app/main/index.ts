@@ -107,7 +107,7 @@ function updateTrayMenu() {
 
   const onOff = (v: boolean) => v ? tx('✅ Açık', '✅ On') : tx('❌ Kapalı', '❌ Off')
   const statusItems: Electron.MenuItemConstructorOptions[] = [
-    { label: 'Aras Antivirüs v1.5.1', enabled: false },
+    { label: 'Aras Antivirüs v1.6.0', enabled: false },
     { type: 'separator' },
     { label: `${tx('Canlı Koruma', 'Live Protection')}: ${onOff(settings.liveProtection)}`, enabled: false },
     { label: `${tx('Arka Plan Koruma', 'Background Guard')}: ${guardActive ? tx('✅ Çalışıyor', '✅ Running') : tx('⏹ Durdu', '⏹ Stopped')}`, enabled: false },
