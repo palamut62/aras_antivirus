@@ -215,6 +215,10 @@ if (!gotTheLock) {
     createTray()
 
     const settings = SettingsService.get()
+    // VT API key'i env variable olarak ayarla (PS scriptleri kullanır)
+    if (settings.virusTotalApiKey) {
+      process.env.VIRUSTOTAL_API_KEY = settings.virusTotalApiKey
+    }
     if (settings.autoStart) setupAutostart()
     if (settings.liveProtection) {
       startBackgroundGuard()

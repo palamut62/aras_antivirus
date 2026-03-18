@@ -17,6 +17,7 @@ export interface MoleSettings {
   scheduledScan: boolean
   scheduledScanInterval: 'hourly' | 'daily' | 'weekly'
   scheduledScanHours: number // every X hours (for hourly mode)
+  virusTotalApiKey: string
 }
 
 const DEFAULT_SETTINGS: MoleSettings = {
@@ -37,6 +38,7 @@ const DEFAULT_SETTINGS: MoleSettings = {
   scheduledScan: false,
   scheduledScanInterval: 'daily',
   scheduledScanHours: 6,
+  virusTotalApiKey: '',
 }
 
 let settingsPath = ''

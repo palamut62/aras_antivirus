@@ -283,9 +283,11 @@ export function registerIpcHandlers() {
   ipcMain.handle('settings:update', async (_e, partial: any) => {
     const prev = SettingsService.get()
     const updated = SettingsService.update(partial)
-    // Restart scheduled scan if settings changed
     if (partial.scheduledScan !== undefined || partial.scheduledScanInterval !== undefined || partial.scheduledScanHours !== undefined) {
       restartScheduledScan()
+    }
+    if (partial.virusTotalApiKey !== undefined) {
+      process.env.VIRUSTOTAL_API_KEY = partial.virusTotalApiKey
     }
     return updated
   })
