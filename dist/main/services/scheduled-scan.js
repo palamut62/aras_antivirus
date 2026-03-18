@@ -13,6 +13,9 @@ const history_db_1 = require("./history-db");
 const electron_log_1 = __importDefault(require("electron-log"));
 let scanInterval = null;
 let mainWindowRef = null;
+// Bildirim deduplication
+const recentBanners = new Map();
+const BANNER_COOLDOWN = 10 * 60 * 1000;
 function formatSize(bytes) {
     if (bytes >= 1e9)
         return (bytes / 1e9).toFixed(2) + ' GB';
@@ -26,16 +29,25 @@ function tx(tr, en) {
     return settings_1.SettingsService.get().language === 'en' ? en : tr;
 }
 function sendBanner(data) {
+    // Deduplication
+    const key = `${data.type}:${data.title}`;
+    const now = Date.now();
+    for (const [k, t] of recentBanners) {
+        if (now - t > BANNER_COOLDOWN)
+            recentBanners.delete(k);
+    }
+    if (recentBanners.has(key))
+        return;
+    recentBanners.set(key, now);
     const win = mainWindowRef || electron_1.BrowserWindow.getAllWindows()[0];
     const isVisible = !!(win && win.isVisible() && !win.isMinimized());
     if (isVisible && win) {
         win.webContents.send('banner:notify', data);
     }
     else {
-        // Pencere kapalı → native toast
         const toast = new electron_1.Notification({
-            title: `Aras Antivirüs - ${data.title}`,
-            body: data.message || '',
+            title: 'Aras Antivirüs',
+            body: `${data.title}${data.message ? '\n' + data.message : ''}`,
         });
         if (data.action && win) {
             toast.on('click', () => {

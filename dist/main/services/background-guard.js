@@ -18,6 +18,21 @@ let usbInterval = null;
 let usbWatcherProcess = null;
 let isRunning = false;
 let mainWindowRef = null;
+// Bildirim deduplication - aynı bildirimi tekrar gösterme
+const recentNotifications = new Map(); // key → timestamp
+const NOTIFICATION_COOLDOWN = 10 * 60 * 1000; // 10 dakika
+function shouldNotify(key) {
+    const now = Date.now();
+    // Eski kayıtları temizle
+    for (const [k, t] of recentNotifications) {
+        if (now - t > NOTIFICATION_COOLDOWN)
+            recentNotifications.delete(k);
+    }
+    if (recentNotifications.has(key))
+        return false;
+    recentNotifications.set(key, now);
+    return true;
+}
 // In-app dialog system — promise resolvers keyed by dialog ID
 const dialogResolvers = new Map();
 // Register IPC listener once
@@ -47,17 +62,18 @@ function isWindowVisible() {
     return !!(win && win.isVisible() && !win.isMinimized());
 }
 function sendBannerNotification(data) {
+    // Deduplication: aynı bildirimi 10dk içinde tekrar gösterme
+    const notifKey = `${data.type}:${data.title}`;
+    if (!shouldNotify(notifKey))
+        return;
     const win = mainWindowRef || electron_1.BrowserWindow.getAllWindows()[0];
     if (isWindowVisible() && win) {
-        // Pencere açık → in-app banner
         win.webContents.send('banner:notify', data);
     }
     else {
-        // Pencere kapalı/gizli → native Windows toast
         const toast = new electron_1.Notification({
-            title: `Aras Antivirüs - ${data.title}`,
-            body: data.message || '',
-            icon: undefined, // uses app icon
+            title: 'Aras Antivirüs',
+            body: `${data.title}${data.message ? '\n' + data.message : ''}`,
         });
         if (data.action && win) {
             toast.on('click', () => {
@@ -67,7 +83,6 @@ function sendBannerNotification(data) {
             });
         }
         toast.show();
-        // Ayrıca tray log'a ekle
         try {
             const { addTrayLog } = require('../index');
             addTrayLog(data.title);
@@ -157,6 +172,12 @@ async function deleteFromQuarantine(quarantineId) {
     }
 }
 async function askUserAboutThreat(threat) {
+    // Aynı dosya için tekrar sorma (30dk cooldown)
+    const threatKey = `threat:${threat.filePath}`;
+    if (!shouldNotify(threatKey)) {
+        electron_log_1.default.debug('[Guard] Duplicate threat skipped:', threat.fileName);
+        return;
+    }
     // 1) Önce karantinaya al
     const quarantined = await quarantineFile(threat.filePath, threat.reason);
     if (!quarantined) {
@@ -182,6 +203,7 @@ async function askUserAboutThreat(threat) {
             `Konum: ${threat.filePath}`,
             `Risk Skoru: ${threat.riskScore}`,
             `Sebep: ${threat.reason}`,
+            ...(threat.defenderThreat ? [`Windows Defender: ${threat.defenderThreat}`] : []),
             '',
             'Dosya otomatik olarak karantinaya alındı.',
         ].join('\n'),
@@ -245,6 +267,7 @@ async function checkNewFiles() {
                     filePath: threat.path,
                     riskScore: threat.riskScore,
                     reason: threat.reason || 'Şüpheli dosya tespit edildi',
+                    defenderThreat: threat.defenderThreat,
                 });
             }
         }

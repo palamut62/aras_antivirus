@@ -14,6 +14,9 @@ const api = {
     quarantineAction: (action, filePath, quarantineId) => electron_1.ipcRenderer.invoke('quarantine:action', action, filePath, quarantineId),
     repoScan: (path) => electron_1.ipcRenderer.invoke('security:repo', path),
     liveGuard: (watchPaths) => electron_1.ipcRenderer.invoke('security:live-guard', watchPaths),
+    // Defender & VirusTotal
+    defenderScan: (action, path) => electron_1.ipcRenderer.invoke('defender:scan', action, path),
+    virusTotalCheck: (action, hash, filePath) => electron_1.ipcRenderer.invoke('virustotal:check', action, hash, filePath),
     // Web/USB/Network
     webProtection: (action) => electron_1.ipcRenderer.invoke('web:protection', action),
     usbMonitor: (action, driveLetter) => electron_1.ipcRenderer.invoke('usb:monitor', action, driveLetter),

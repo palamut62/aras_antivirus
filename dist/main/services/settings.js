@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS = {
     scheduledScan: false,
     scheduledScanInterval: 'daily',
     scheduledScanHours: 6,
+    virusTotalApiKey: '',
 };
 let settingsPath = '';
 let currentSettings = { ...DEFAULT_SETTINGS };

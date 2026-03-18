@@ -78,8 +78,17 @@ function getAssetPath(filename) {
     }
     return possiblePaths[0];
 }
+// --- Dil yardımcısı ---
+function tx(tr, en) {
+    try {
+        return settings_1.SettingsService.get().language === 'en' ? en : tr;
+    }
+    catch {
+        return tr;
+    }
+}
 const trayActivityLog = [];
-const MAX_TRAY_LOG = 10;
+const MAX_TRAY_LOG = 5;
 function addTrayLog(text) {
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -93,45 +102,45 @@ function updateTrayMenu() {
         return;
     const guardActive = (0, background_guard_1.isGuardRunning)();
     const settings = settings_1.SettingsService.get();
+    const onOff = (v) => v ? tx('✅ Açık', '✅ On') : tx('❌ Kapalı', '❌ Off');
     const statusItems = [
-        { label: 'Aras Antivirüs v1.4.0', enabled: false },
+        { label: 'Aras Antivirüs v1.5.1', enabled: false },
         { type: 'separator' },
-        { label: `Canlı Koruma: ${settings.liveProtection ? '✅ Açık' : '❌ Kapalı'}`, enabled: false },
-        { label: `Arka Plan Koruma: ${guardActive ? '✅ Çalışıyor' : '⏹ Durdu'}`, enabled: false },
-        { label: `Zamanlanmış Tarama: ${settings.scheduledScan ? '✅ Açık' : '❌ Kapalı'}`, enabled: false },
+        { label: `${tx('Canlı Koruma', 'Live Protection')}: ${onOff(settings.liveProtection)}`, enabled: false },
+        { label: `${tx('Arka Plan Koruma', 'Background Guard')}: ${guardActive ? tx('✅ Çalışıyor', '✅ Running') : tx('⏹ Durdu', '⏹ Stopped')}`, enabled: false },
+        { label: `${tx('Zamanlanmış Tarama', 'Scheduled Scan')}: ${onOff(settings.scheduledScan)}`, enabled: false },
         { type: 'separator' },
     ];
     const actionItems = [
         {
-            label: 'Göster',
+            label: tx('Göster', 'Show'),
             click: () => { mainWindow?.show(); mainWindow?.focus(); },
         },
         {
-            label: 'Hızlı Tarama',
+            label: tx('Hızlı Tarama', 'Quick Scan'),
             click: () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send('navigate', '/security-scan'); },
         },
         {
-            label: 'Canlı Koruma',
+            label: tx('Canlı Koruma', 'Live Protection'),
             click: () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send('navigate', '/realtime'); },
         },
         { type: 'separator' },
         guardActive
-            ? { label: '⏹ Arka Plan Korumayı Durdur', click: () => { (0, background_guard_1.stopBackgroundGuard)(); addTrayLog('Arka plan koruma durduruldu'); } }
-            : { label: '▶ Arka Plan Korumayı Başlat', click: () => { (0, background_guard_1.startBackgroundGuard)(); addTrayLog('Arka plan koruma başlatıldı'); } },
+            ? { label: tx('⏹ Arka Plan Korumayı Durdur', '⏹ Stop Background Guard'), click: () => { (0, background_guard_1.stopBackgroundGuard)(); addTrayLog(tx('Arka plan koruma durduruldu', 'Background guard stopped')); } }
+            : { label: tx('▶ Arka Plan Korumayı Başlat', '▶ Start Background Guard'), click: () => { (0, background_guard_1.startBackgroundGuard)(); addTrayLog(tx('Arka plan koruma başlatıldı', 'Background guard started')); } },
         { type: 'separator' },
     ];
-    // Son işlemler (loglar)
     const logItems = [];
     if (trayActivityLog.length > 0) {
-        logItems.push({ label: '📋 Son İşlemler', enabled: false });
-        for (const entry of trayActivityLog.slice(0, 8)) {
+        logItems.push({ label: tx('📋 Son İşlemler', '📋 Recent Activity'), enabled: false });
+        for (const entry of trayActivityLog.slice(0, 5)) {
             logItems.push({ label: `  ${entry.time} - ${entry.text}`, enabled: false });
         }
         logItems.push({ type: 'separator' });
     }
     const exitItem = [
         {
-            label: 'Çıkış',
+            label: tx('Çıkış', 'Exit'),
             click: () => { electron_1.app.isQuitting = true; electron_1.app.quit(); },
         },
     ];
@@ -205,6 +214,10 @@ else {
             (0, background_guard_1.setMainWindow)(mainWindow);
         createTray();
         const settings = settings_1.SettingsService.get();
+        // VT API key'i env variable olarak ayarla (PS scriptleri kullanır)
+        if (settings.virusTotalApiKey) {
+            process.env.VIRUSTOTAL_API_KEY = settings.virusTotalApiKey;
+        }
         if (settings.autoStart)
             setupAutostart();
         if (settings.liveProtection) {

@@ -119,6 +119,43 @@ function registerIpcHandlers() {
     electron_1.ipcMain.handle('security:live-guard', async (_e, watchPaths) => {
         return await (0, powershell_1.runPowerShell)('live-guard.ps1', ['-WatchPaths', watchPaths.join(',')], 'live-guard');
     });
+    // === DEFENDER & VIRUSTOTAL ===
+    electron_1.ipcMain.handle('defender:scan', async (_e, action, path) => {
+        const args = ['-Action', action];
+        if (path)
+            args.push('-Path', path);
+        const result = await (0, powershell_1.runPowerShell)('defender-scan.ps1', args, 'defender-' + action);
+        if (result.success && result.data?.threats?.length > 0) {
+            for (const t of result.data.threats) {
+                history_db_1.HistoryDB.add({
+                    action: 'scan',
+                    target: t.resources?.[0] || 'Defender Detection',
+                    details: `Windows Defender: ${t.threatName} (${t.category})`,
+                    riskScore: t.severityId === 5 ? 100 : t.severityId === 4 ? 80 : t.severityId === 2 ? 50 : 30,
+                    status: 'success',
+                });
+            }
+        }
+        return result;
+    });
+    electron_1.ipcMain.handle('virustotal:check', async (_e, action, hash, filePath) => {
+        const args = ['-Action', action];
+        if (hash)
+            args.push('-Hash', hash);
+        if (filePath)
+            args.push('-FilePath', filePath);
+        const result = await (0, powershell_1.runPowerShell)('virustotal.ps1', args, 'vt-' + action);
+        if (result.success && result.data?.malicious > 0) {
+            history_db_1.HistoryDB.add({
+                action: 'scan',
+                target: result.data.localFile?.path || hash || 'VirusTotal Check',
+                details: `VirusTotal: ${result.data.detectionRate} motor tespit etti - ${result.data.threatLabel || 'Unknown'}`,
+                riskScore: result.data.malicious >= 10 ? 90 : result.data.malicious >= 3 ? 60 : 30,
+                status: 'success',
+            });
+        }
+        return result;
+    });
     // === WEB / USB / NETWORK ===
     electron_1.ipcMain.handle('web:protection', async (_e, action) => {
         return await (0, powershell_1.runPowerShell)('web-protection.ps1', ['-Action', action], 'web-' + action);
@@ -238,9 +275,11 @@ function registerIpcHandlers() {
     electron_1.ipcMain.handle('settings:update', async (_e, partial) => {
         const prev = settings_1.SettingsService.get();
         const updated = settings_1.SettingsService.update(partial);
-        // Restart scheduled scan if settings changed
         if (partial.scheduledScan !== undefined || partial.scheduledScanInterval !== undefined || partial.scheduledScanHours !== undefined) {
             (0, scheduled_scan_1.restartScheduledScan)();
+        }
+        if (partial.virusTotalApiKey !== undefined) {
+            process.env.VIRUSTOTAL_API_KEY = partial.virusTotalApiKey;
         }
         return updated;
     });
