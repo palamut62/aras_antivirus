@@ -27,8 +27,30 @@ function tx(tr, en) {
 }
 function sendBanner(data) {
     const win = mainWindowRef || electron_1.BrowserWindow.getAllWindows()[0];
-    if (win)
+    const isVisible = !!(win && win.isVisible() && !win.isMinimized());
+    if (isVisible && win) {
         win.webContents.send('banner:notify', data);
+    }
+    else {
+        // Pencere kapalı → native toast
+        const toast = new electron_1.Notification({
+            title: `Aras Antivirüs - ${data.title}`,
+            body: data.message || '',
+        });
+        if (data.action && win) {
+            toast.on('click', () => {
+                win.show();
+                win.focus();
+                win.webContents.send('navigate', data.action.route);
+            });
+        }
+        toast.show();
+        try {
+            const { addTrayLog } = require('../index');
+            addTrayLog(data.title);
+        }
+        catch { }
+    }
 }
 async function runScheduledScan() {
     electron_log_1.default.info('[ScheduledScan] Starting automatic scan...');

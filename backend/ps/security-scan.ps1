@@ -7,7 +7,20 @@ param(
 $ErrorActionPreference = "SilentlyContinue"
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-$suspiciousExtensions = @('.exe','.dll','.bat','.cmd','.ps1','.vbs','.js','.jar','.py','.scr')
+$suspiciousExtensions = @('.exe','.dll','.bat','.cmd','.ps1','.vbs','.js','.jar','.py','.scr','.msi','.hta','.cpl','.com','.pif','.wsf','.wsh')
+
+# --- Windows Defender Integration ---
+$defenderAvailable = $false
+try {
+    $mpStatus = Get-MpComputerStatus -ErrorAction Stop
+    if ($mpStatus -and $mpStatus.AntivirusEnabled) { $defenderAvailable = $true }
+} catch {}
+
+# --- VirusTotal Integration ---
+$vtApiKey = $env:VIRUSTOTAL_API_KEY
+$vtAvailable = [bool]$vtApiKey
+$vtChecked = 0
+$vtMaxPerScan = 20  # Free tier limit koruma
 
 function Get-FileEntropy {
     param([string]$FilePath)
@@ -175,9 +188,87 @@ foreach ($file in $allFiles) {
         $riskScore += 15; $reasons.Add("High entropy ($entropy)") | Out-Null; $heuristics.Add("high_entropy") | Out-Null
     }
 
+    # --- Windows Defender imza kontrolü ---
+    $defenderResult = $null
+    if ($defenderAvailable -and $ext -in @('.exe','.dll','.scr','.msi','.com','.pif','.hta','.cpl')) {
+        try {
+            # Dosya için Defender özel taraması
+            Start-MpScan -ScanType CustomScan -ScanPath $file.FullName -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 500
+
+            $defenderThreat = Get-MpThreatDetection -ErrorAction SilentlyContinue | Where-Object {
+                $_.Resources -match [regex]::Escape($file.FullName) -and
+                $_.InitialDetectionTime -gt (Get-Date).AddMinutes(-1)
+            } | Select-Object -First 1
+
+            if ($defenderThreat) {
+                $catalog = Get-MpThreat -ErrorAction SilentlyContinue | Where-Object { $_.ThreatID -eq $defenderThreat.ThreatID } | Select-Object -First 1
+                $threatName = if ($catalog) { $catalog.ThreatName } else { "Defender Detection" }
+                $riskScore += 50
+                $reasons.Add("Windows Defender: $threatName") | Out-Null
+                $heuristics.Add("defender_detection") | Out-Null
+                $defenderResult = @{
+                    detected = $true
+                    threatName = $threatName
+                    severity = if ($catalog) { $catalog.SeverityID } else { 4 }
+                }
+            }
+        } catch {}
+    }
+
+    # --- VirusTotal hash kontrolü ---
+    $vtResult = $null
+    if ($vtAvailable -and $sha256 -and $vtChecked -lt $vtMaxPerScan -and ($riskScore -ge 20 -or $ext -in @('.exe','.dll','.scr','.msi'))) {
+        try {
+            $vtHeaders = @{ "x-apikey" = $vtApiKey }
+            $vtUri = "https://www.virustotal.com/api/v3/files/$sha256"
+            $vtResponse = Invoke-RestMethod -Uri $vtUri -Headers $vtHeaders -Method Get -TimeoutSec 10 -ErrorAction Stop
+            $vtChecked++
+
+            $vtStats = $vtResponse.data.attributes.last_analysis_stats
+            $vtMalicious = $vtStats.malicious
+            $vtTotal = $vtStats.malicious + $vtStats.suspicious + $vtStats.undetected + $vtStats.harmless
+
+            if ($vtMalicious -gt 0) {
+                $vtLabel = $vtResponse.data.attributes.popular_threat_classification.suggested_threat_label
+                if ($vtMalicious -ge 10) {
+                    $riskScore += 60
+                    $reasons.Add("VirusTotal: $vtMalicious/$vtTotal motor tespit etti ($vtLabel)") | Out-Null
+                } elseif ($vtMalicious -ge 3) {
+                    $riskScore += 40
+                    $reasons.Add("VirusTotal: $vtMalicious/$vtTotal motor suplheli ($vtLabel)") | Out-Null
+                } else {
+                    $riskScore += 15
+                    $reasons.Add("VirusTotal: $vtMalicious/$vtTotal motor ($vtLabel)") | Out-Null
+                }
+                $heuristics.Add("virustotal_detection") | Out-Null
+                $vtResult = @{
+                    detected = $true
+                    malicious = $vtMalicious
+                    total = $vtTotal
+                    label = $vtLabel
+                    detectionRate = "$vtMalicious/$vtTotal"
+                }
+            } else {
+                $vtResult = @{ detected = $false; malicious = 0; total = $vtTotal }
+                # VT'de temiz çıkan dosyanın skorunu düşür
+                if ($riskScore -gt 0 -and $vtTotal -gt 50) {
+                    $riskScore = [math]::Max(0, $riskScore - 15)
+                    $reasons.Add("VirusTotal: 0/$vtTotal - temiz") | Out-Null
+                }
+            }
+
+            # Rate limit: 4/dakika
+            if ($vtChecked % 4 -eq 0) { Start-Sleep -Seconds 15 }
+        } catch {
+            # 404 = VT'de yok, 429 = rate limit
+        }
+    }
+
     if ($riskScore -eq 0) { continue }
 
     # Severity
+    $riskScore = [math]::Min(100, $riskScore)
     $severity = switch ($true) {
         ($riskScore -ge 70) { "high" }
         ($riskScore -ge 50) { "suspicious" }
@@ -193,7 +284,7 @@ foreach ($file in $allFiles) {
         default { "ignore" }
     }
 
-    $threats += @{
+    $threatEntry = @{
         filePath = $file.FullName
         fileName = $file.Name
         sha256 = $sha256
@@ -206,6 +297,11 @@ foreach ($file in $allFiles) {
         heuristicMatches = @($heuristics)
         recommendedAction = $action
     }
+
+    if ($defenderResult) { $threatEntry["defender"] = $defenderResult }
+    if ($vtResult) { $threatEntry["virusTotal"] = $vtResult }
+
+    $threats += $threatEntry
 }
 
 $stopwatch.Stop()
@@ -215,4 +311,10 @@ $stopwatch.Stop()
     scannedFiles = $scannedFiles
     threats = @($threats)
     scanDuration = "$([Math]::Round($stopwatch.Elapsed.TotalSeconds, 2))s"
+    engines = @{
+        heuristic = $true
+        defender = $defenderAvailable
+        virusTotal = $vtAvailable
+        vtChecked = $vtChecked
+    }
 } | ConvertTo-Json -Depth 5

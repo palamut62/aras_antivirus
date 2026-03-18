@@ -120,6 +120,42 @@ export function registerIpcHandlers() {
     return await runPowerShell('live-guard.ps1', ['-WatchPaths', watchPaths.join(',')], 'live-guard')
   })
 
+  // === DEFENDER & VIRUSTOTAL ===
+  ipcMain.handle('defender:scan', async (_e, action: string, path?: string) => {
+    const args = ['-Action', action]
+    if (path) args.push('-Path', path)
+    const result = await runPowerShell('defender-scan.ps1', args, 'defender-' + action)
+    if (result.success && result.data?.threats?.length > 0) {
+      for (const t of result.data.threats) {
+        HistoryDB.add({
+          action: 'scan',
+          target: t.resources?.[0] || 'Defender Detection',
+          details: `Windows Defender: ${t.threatName} (${t.category})`,
+          riskScore: t.severityId === 5 ? 100 : t.severityId === 4 ? 80 : t.severityId === 2 ? 50 : 30,
+          status: 'success',
+        })
+      }
+    }
+    return result
+  })
+
+  ipcMain.handle('virustotal:check', async (_e, action: string, hash?: string, filePath?: string) => {
+    const args = ['-Action', action]
+    if (hash) args.push('-Hash', hash)
+    if (filePath) args.push('-FilePath', filePath)
+    const result = await runPowerShell('virustotal.ps1', args, 'vt-' + action)
+    if (result.success && result.data?.malicious > 0) {
+      HistoryDB.add({
+        action: 'scan',
+        target: result.data.localFile?.path || hash || 'VirusTotal Check',
+        details: `VirusTotal: ${result.data.detectionRate} motor tespit etti - ${result.data.threatLabel || 'Unknown'}`,
+        riskScore: result.data.malicious >= 10 ? 90 : result.data.malicious >= 3 ? 60 : 30,
+        status: 'success',
+      })
+    }
+    return result
+  })
+
   // === WEB / USB / NETWORK ===
   ipcMain.handle('web:protection', async (_e, action: string) => {
     return await runPowerShell('web-protection.ps1', ['-Action', action], 'web-' + action)

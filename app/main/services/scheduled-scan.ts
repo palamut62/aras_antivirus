@@ -7,6 +7,10 @@ import log from 'electron-log'
 let scanInterval: NodeJS.Timeout | null = null
 let mainWindowRef: BrowserWindow | null = null
 
+// Bildirim deduplication
+const recentBanners = new Map<string, number>()
+const BANNER_COOLDOWN = 10 * 60 * 1000
+
 function formatSize(bytes: number): string {
   if (bytes >= 1e9) return (bytes / 1e9).toFixed(2) + ' GB'
   if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB'
@@ -19,17 +23,24 @@ function tx(tr: string, en: string): string {
 }
 
 function sendBanner(data: { type: string; title: string; message?: string; action?: { label: string; route: string } }) {
-  const win = mainWindowRef || BrowserWindow.getAllWindows()[0]
+  // Deduplication
+  const key = `${data.type}:${data.title}`
+  const now = Date.now()
+  for (const [k, t] of recentBanners) {
+    if (now - t > BANNER_COOLDOWN) recentBanners.delete(k)
+  }
+  if (recentBanners.has(key)) return
+  recentBanners.set(key, now)
 
+  const win = mainWindowRef || BrowserWindow.getAllWindows()[0]
   const isVisible = !!(win && win.isVisible() && !win.isMinimized())
 
   if (isVisible && win) {
     win.webContents.send('banner:notify', data)
   } else {
-    // Pencere kapalı → native toast
     const toast = new Notification({
-      title: `Aras Antivirüs - ${data.title}`,
-      body: data.message || '',
+      title: 'Aras Antivirüs',
+      body: `${data.title}${data.message ? '\n' + data.message : ''}`,
     })
     if (data.action && win) {
       toast.on('click', () => {

@@ -16,6 +16,11 @@ const api = {
   repoScan: (path: string) => ipcRenderer.invoke('security:repo', path),
   liveGuard: (watchPaths: string[]) => ipcRenderer.invoke('security:live-guard', watchPaths),
 
+  // Defender & VirusTotal
+  defenderScan: (action: string, path?: string) => ipcRenderer.invoke('defender:scan', action, path),
+  virusTotalCheck: (action: string, hash?: string, filePath?: string) =>
+    ipcRenderer.invoke('virustotal:check', action, hash, filePath),
+
   // Web/USB/Network
   webProtection: (action: string) => ipcRenderer.invoke('web:protection', action),
   usbMonitor: (action: string, driveLetter?: string) => ipcRenderer.invoke('usb:monitor', action, driveLetter),

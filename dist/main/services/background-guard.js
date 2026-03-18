@@ -42,19 +42,77 @@ function tx(tr, en) {
         return tr;
     }
 }
+function isWindowVisible() {
+    const win = mainWindowRef || electron_1.BrowserWindow.getAllWindows()[0];
+    return !!(win && win.isVisible() && !win.isMinimized());
+}
 function sendBannerNotification(data) {
     const win = mainWindowRef || electron_1.BrowserWindow.getAllWindows()[0];
-    if (win)
+    if (isWindowVisible() && win) {
+        // Pencere açık → in-app banner
         win.webContents.send('banner:notify', data);
+    }
+    else {
+        // Pencere kapalı/gizli → native Windows toast
+        const toast = new electron_1.Notification({
+            title: `Aras Antivirüs - ${data.title}`,
+            body: data.message || '',
+            icon: undefined, // uses app icon
+        });
+        if (data.action && win) {
+            toast.on('click', () => {
+                win.show();
+                win.focus();
+                win.webContents.send('navigate', data.action.route);
+            });
+        }
+        toast.show();
+        // Ayrıca tray log'a ekle
+        try {
+            const { addTrayLog } = require('../index');
+            addTrayLog(data.title);
+        }
+        catch { }
+    }
 }
 function showInAppDialog(options) {
     ensureDialogListener();
     const win = mainWindowRef || electron_1.BrowserWindow.getAllWindows()[0];
     if (!win)
         return Promise.resolve(options.buttons.length - 1);
+    const id = 'dlg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    // Pencere gizliyse önce native toast göster, tıklanınca pencereyi aç ve dialog'u göster
+    if (!isWindowVisible()) {
+        const toast = new electron_1.Notification({
+            title: `⚠ ${options.title}`,
+            body: `${options.message}\nDetaylar için tıklayın.`,
+        });
+        // Tray log'a ekle
+        try {
+            const { addTrayLog } = require('../index');
+            addTrayLog(`⚠ ${options.title}`);
+        }
+        catch { }
+        return new Promise((resolve) => {
+            dialogResolvers.set(id, resolve);
+            toast.on('click', () => {
+                win.show();
+                win.focus();
+                win.webContents.send('dialog:show', { id, ...options });
+            });
+            toast.show();
+            // Toast tıklanmazsa 60sn sonra varsayılan aksiyon (karantinada tut)
+            setTimeout(() => {
+                if (dialogResolvers.has(id)) {
+                    dialogResolvers.delete(id);
+                    resolve(options.buttons.length - 1); // son buton = karantinada tut
+                }
+            }, 60000);
+        });
+    }
+    // Pencere açıksa direkt dialog göster
     win.show();
     win.focus();
-    const id = 'dlg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
     return new Promise((resolve) => {
         dialogResolvers.set(id, resolve);
         win.webContents.send('dialog:show', { id, ...options });
@@ -107,6 +165,12 @@ async function askUserAboutThreat(threat) {
     }
     electron_log_1.default.info('[Guard] Karantinaya alındı:', threat.filePath);
     history_db_1.HistoryDB.add({ action: 'quarantine', target: threat.filePath, details: threat.reason, riskScore: threat.riskScore, status: 'success' });
+    // Tray log'a ekle
+    try {
+        const { addTrayLog } = require('../index');
+        addTrayLog(`Tehdit karantinaya alındı: ${threat.fileName}`);
+    }
+    catch { }
     // Karantina ID'sini listeden bulacağız (aşağıda)
     // 2) Kullanıcıya sor (in-app dark dialog)
     const buttonIndex = await showInAppDialog({

@@ -84,7 +84,7 @@ interface TrayLogEntry {
   text: string
 }
 const trayActivityLog: TrayLogEntry[] = []
-const MAX_TRAY_LOG = 10
+const MAX_TRAY_LOG = 5
 
 export function addTrayLog(text: string) {
   const now = new Date()
@@ -101,7 +101,7 @@ function updateTrayMenu() {
   const settings = SettingsService.get()
 
   const statusItems: Electron.MenuItemConstructorOptions[] = [
-    { label: 'Aras Antivirüs v1.4.0', enabled: false },
+    { label: 'Aras Antivirüs v1.5.0', enabled: false },
     { type: 'separator' },
     { label: `Canlı Koruma: ${settings.liveProtection ? '✅ Açık' : '❌ Kapalı'}`, enabled: false },
     { label: `Arka Plan Koruma: ${guardActive ? '✅ Çalışıyor' : '⏹ Durdu'}`, enabled: false },
@@ -133,7 +133,7 @@ function updateTrayMenu() {
   const logItems: Electron.MenuItemConstructorOptions[] = []
   if (trayActivityLog.length > 0) {
     logItems.push({ label: '📋 Son İşlemler', enabled: false })
-    for (const entry of trayActivityLog.slice(0, 8)) {
+    for (const entry of trayActivityLog.slice(0, 5)) {
       logItems.push({ label: `  ${entry.time} - ${entry.text}`, enabled: false })
     }
     logItems.push({ type: 'separator' })

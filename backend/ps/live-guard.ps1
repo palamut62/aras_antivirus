@@ -6,6 +6,13 @@ param(
 $ErrorActionPreference = "SilentlyContinue"
 
 $suspiciousExtensions = @(".exe",".dll",".scr",".com",".pif",".bat",".cmd",".ps1",".vbs",".vbe",".wsf",".wsh",".msi",".hta",".cpl",".inf",".reg",".jar",".msp",".mst")
+
+# Windows Defender hazır mı?
+$defenderReady = $false
+try {
+    $mpStatus = Get-MpComputerStatus -ErrorAction Stop
+    if ($mpStatus -and $mpStatus.AntivirusEnabled) { $defenderReady = $true }
+} catch {}
 $archiveExtensions = @(".zip",".rar",".7z",".cab",".iso",".tar",".gz")
 $safeExtensions = @(".txt",".md",".log",".json",".yaml",".yml",".toml",".xml",".csv",".ini",".cfg",".conf",".gitignore",".editorconfig",".prettierrc",".eslintrc",".svg",".png",".jpg",".jpeg",".gif",".ico",".bmp",".webp",".woff",".woff2",".ttf",".eot",".map",".d.ts",".lock",".sum")
 $devSourceExtensions = @(".js",".ts",".jsx",".tsx",".py",".go",".rs",".java",".cs",".cpp",".c",".h",".hpp",".rb",".php",".swift",".kt",".scala",".html",".css",".scss",".less",".sass",".vue",".svelte")
@@ -81,9 +88,28 @@ foreach ($watchPath in $WatchPaths) {
             $reason += "Double extension trick"
         }
 
+        # Windows Defender gerçek zamanlı kontrol (exe/dll/scr için)
+        $defenderThreatName = $null
+        if ($defenderReady -and $ext -in @('.exe','.dll','.scr','.msi','.com','.pif','.hta')) {
+            try {
+                Start-MpScan -ScanType CustomScan -ScanPath $file.FullName -ErrorAction SilentlyContinue
+                Start-Sleep -Milliseconds 300
+                $mpThreat = Get-MpThreatDetection -ErrorAction SilentlyContinue | Where-Object {
+                    $_.Resources -match [regex]::Escape($file.FullName) -and
+                    $_.InitialDetectionTime -gt (Get-Date).AddSeconds(-10)
+                } | Select-Object -First 1
+                if ($mpThreat) {
+                    $catalog = Get-MpThreat -ErrorAction SilentlyContinue | Where-Object { $_.ThreatID -eq $mpThreat.ThreatID } | Select-Object -First 1
+                    $defenderThreatName = if ($catalog) { $catalog.ThreatName } else { "Malware" }
+                    $risk += 50
+                    $reason += "Windows Defender: $defenderThreatName"
+                }
+            } catch {}
+        }
+
         $risk = [math]::Min(100, $risk)
 
-        $events += @{
+        $eventEntry = @{
             path = $file.FullName
             fileName = $file.Name
             extension = $ext
@@ -94,6 +120,10 @@ foreach ($watchPath in $WatchPaths) {
             sizeKB = [math]::Round($file.Length / 1KB, 1)
             created = $file.CreationTime.ToString("o")
         }
+        if ($defenderThreatName) {
+            $eventEntry["defenderThreat"] = $defenderThreatName
+        }
+        $events += $eventEntry
     }
 }
 
