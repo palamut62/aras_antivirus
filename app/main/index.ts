@@ -101,7 +101,7 @@ function updateTrayMenu() {
   const settings = SettingsService.get()
 
   const statusItems: Electron.MenuItemConstructorOptions[] = [
-    { label: 'Aras Antivirüs v1.5.0', enabled: false },
+    { label: 'Aras Antivirüs v1.5.1', enabled: false },
     { type: 'separator' },
     { label: `Canlı Koruma: ${settings.liveProtection ? '✅ Açık' : '❌ Kapalı'}`, enabled: false },
     { label: `Arka Plan Koruma: ${guardActive ? '✅ Çalışıyor' : '⏹ Durdu'}`, enabled: false },
