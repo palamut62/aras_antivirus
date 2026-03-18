@@ -6,6 +6,7 @@ import { LoggerService } from '../services/logger'
 import log from 'electron-log'
 import { HistoryDB } from '../services/history-db'
 import { ThreatDB } from '../services/threat-db'
+import { restartScheduledScan } from '../services/scheduled-scan'
 
 export function registerIpcHandlers() {
   LoggerService.init()
@@ -243,7 +244,15 @@ export function registerIpcHandlers() {
   })
 
   ipcMain.handle('settings:get', async () => SettingsService.get())
-  ipcMain.handle('settings:update', async (_e, partial: any) => SettingsService.update(partial))
+  ipcMain.handle('settings:update', async (_e, partial: any) => {
+    const prev = SettingsService.get()
+    const updated = SettingsService.update(partial)
+    // Restart scheduled scan if settings changed
+    if (partial.scheduledScan !== undefined || partial.scheduledScanInterval !== undefined || partial.scheduledScanHours !== undefined) {
+      restartScheduledScan()
+    }
+    return updated
+  })
   ipcMain.handle('logs:list', async (_e, date?: string) => LoggerService.getLogs(date))
   ipcMain.handle('logs:dates', async () => LoggerService.getLogDates())
 

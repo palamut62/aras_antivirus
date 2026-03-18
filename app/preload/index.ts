@@ -87,6 +87,13 @@ const api = {
   // Resource usage
   getResourceUsage: () => ipcRenderer.invoke('system:resource-usage'),
 
+  // Banner notifications (from main process)
+  onBannerNotification: (cb: (data: { type: string; title: string; message?: string; action?: { label: string; route: string } }) => void) => {
+    const handler = (_e: any, data: any) => cb(data)
+    ipcRenderer.on('banner:notify', handler)
+    return () => ipcRenderer.removeListener('banner:notify', handler)
+  },
+
   // Navigate (from main process)
   onNavigate: (cb: (route: string) => void) => {
     const handler = (_e: any, route: string) => cb(route)

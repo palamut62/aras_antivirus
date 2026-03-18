@@ -71,3 +71,9 @@ body {
 .dark .active-nav-glow {
   box-shadow: inset 3px 0 0 var(--mole-accent), 0 0 12px -4px var(--mole-accent);
 }
+
+/* Top Banner slide animation */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

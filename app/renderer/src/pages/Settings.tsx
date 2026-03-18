@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, Plus, X, Shield, Power } from 'lucide-react'
+import { Settings as SettingsIcon, Save, Plus, X, Shield, Power, Clock } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 
 export default function Settings() {
@@ -89,6 +89,56 @@ export default function Settings() {
           value={settings.sendToRecycleBin} onChange={v => setSettings({ ...settings, sendToRecycleBin: v })} />
         <Toggle label={tx('Loglama', 'Logging')} description={tx('Islem loglarini kaydet', 'Save operation logs')}
           value={settings.loggingEnabled} onChange={v => setSettings({ ...settings, loggingEnabled: v })} />
+      </div>
+
+      {/* Zamanlanmis Tarama */}
+      <div className="bg-mole-surface rounded-xl p-5 border border-mole-border space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Clock size={16} className="text-mole-accent" />
+          <p className="font-medium">{tx('Zamanlanmis Tarama', 'Scheduled Scan')}</p>
+        </div>
+        <Toggle label={tx('Otomatik tarama', 'Automatic scan')}
+          description={tx('Belirli aralıklarla gereksiz dosyaları tara ve bildir', 'Scan for junk files at regular intervals and notify')}
+          value={settings.scheduledScan ?? false}
+          onChange={v => setSettings({ ...settings, scheduledScan: v })}
+          activeColor="bg-mole-accent" />
+        {settings.scheduledScan && (
+          <div className="pl-6 space-y-3">
+            <div>
+              <p className="text-sm font-medium mb-2">{tx('Tarama sikligi', 'Scan frequency')}</p>
+              <div className="flex gap-2">
+                {([
+                  { value: 'hourly', label: tx('Saatlik', 'Hourly') },
+                  { value: 'daily', label: tx('Günlük', 'Daily') },
+                  { value: 'weekly', label: tx('Haftalık', 'Weekly') },
+                ] as const).map(opt => (
+                  <button key={opt.value}
+                    onClick={() => setSettings({ ...settings, scheduledScanInterval: opt.value })}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                      settings.scheduledScanInterval === opt.value
+                        ? 'bg-mole-accent/20 border-mole-accent text-mole-accent'
+                        : 'bg-mole-bg border-mole-border text-mole-text-muted hover:border-mole-accent/50'
+                    }`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {settings.scheduledScanInterval === 'hourly' && (
+              <div>
+                <p className="text-sm font-medium mb-2">{tx('Kac saatte bir', 'Every X hours')}</p>
+                <div className="flex items-center gap-3">
+                  <input type="range" min={1} max={12} value={settings.scheduledScanHours || 6}
+                    onChange={e => setSettings({ ...settings, scheduledScanHours: Number(e.target.value) })}
+                    className="flex-1 accent-[var(--mole-accent)]" />
+                  <span className="text-sm font-mono w-16 text-center bg-mole-bg rounded px-2 py-1">
+                    {settings.scheduledScanHours || 6} {tx('saat', 'hrs')}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Korunan Klasörler */}

@@ -20,8 +20,12 @@ const DEFAULT_SETTINGS = {
     devFolders: [],
     customScanFolders: [],
     loggingEnabled: true,
+    language: 'tr',
     liveProtection: true,
     autoStart: true,
+    scheduledScan: false,
+    scheduledScanInterval: 'daily',
+    scheduledScanHours: 6,
 };
 let settingsPath = '';
 let currentSettings = { ...DEFAULT_SETTINGS };

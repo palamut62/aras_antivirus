@@ -11,8 +11,12 @@ export interface MoleSettings {
   devFolders: string[]
   customScanFolders: string[]
   loggingEnabled: boolean
+  language: 'tr' | 'en'
   liveProtection: boolean
   autoStart: boolean
+  scheduledScan: boolean
+  scheduledScanInterval: 'hourly' | 'daily' | 'weekly'
+  scheduledScanHours: number // every X hours (for hourly mode)
 }
 
 const DEFAULT_SETTINGS: MoleSettings = {
@@ -27,8 +31,12 @@ const DEFAULT_SETTINGS: MoleSettings = {
   devFolders: [],
   customScanFolders: [],
   loggingEnabled: true,
+  language: 'tr',
   liveProtection: true,
   autoStart: true,
+  scheduledScan: false,
+  scheduledScanInterval: 'daily',
+  scheduledScanHours: 6,
 }
 
 let settingsPath = ''

@@ -12,6 +12,7 @@ const logger_1 = require("../services/logger");
 const electron_log_1 = __importDefault(require("electron-log"));
 const history_db_1 = require("../services/history-db");
 const threat_db_1 = require("../services/threat-db");
+const scheduled_scan_1 = require("../services/scheduled-scan");
 function registerIpcHandlers() {
     logger_1.LoggerService.init();
     history_db_1.HistoryDB.init();
@@ -234,7 +235,15 @@ function registerIpcHandlers() {
         return (0, powershell_1.cancelTask)(taskId);
     });
     electron_1.ipcMain.handle('settings:get', async () => settings_1.SettingsService.get());
-    electron_1.ipcMain.handle('settings:update', async (_e, partial) => settings_1.SettingsService.update(partial));
+    electron_1.ipcMain.handle('settings:update', async (_e, partial) => {
+        const prev = settings_1.SettingsService.get();
+        const updated = settings_1.SettingsService.update(partial);
+        // Restart scheduled scan if settings changed
+        if (partial.scheduledScan !== undefined || partial.scheduledScanInterval !== undefined || partial.scheduledScanHours !== undefined) {
+            (0, scheduled_scan_1.restartScheduledScan)();
+        }
+        return updated;
+    });
     electron_1.ipcMain.handle('logs:list', async (_e, date) => logger_1.LoggerService.getLogs(date));
     electron_1.ipcMain.handle('logs:dates', async () => logger_1.LoggerService.getLogDates());
     // === HISTORY DB ===

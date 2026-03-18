@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Code2, FolderOpen, Trash2, Loader2, CheckCircle2 } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
+import { useNotificationStore } from '../stores/notificationStore'
 
 interface PurgeTarget {
   path: string
@@ -11,6 +12,7 @@ interface PurgeTarget {
 
 export default function DevPurge() {
   const { tx } = useLang()
+  const pushNotification = useNotificationStore(s => s.push)
   const [folders, setFolders] = useState<string[]>([])
   const [foldersLoaded, setFoldersLoaded] = useState(false)
 
@@ -101,6 +103,11 @@ export default function DevPurge() {
       setPurgeResult(result)
       if (result.success) {
         setTargets(prev => prev.filter(t => !t.selected))
+        pushNotification({
+          type: 'success',
+          title: tx('Artifact temizligi tamamlandi!', 'Artifact cleanup completed!'),
+          message: result.data?.sizeFreed > 0 ? `${formatSize(result.data.sizeFreed)} ${tx('kazanildi', 'freed')}` : undefined,
+        })
       }
     } catch (err) {
       console.error(err)

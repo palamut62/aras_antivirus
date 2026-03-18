@@ -101,6 +101,8 @@ export function LangProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem('aras-lang', lang)
+    // Sync language to main process settings
+    window.moleAPI?.settingsUpdate?.({ language: lang }).catch(() => {})
   }, [lang])
 
   const t = (key: string): string => {

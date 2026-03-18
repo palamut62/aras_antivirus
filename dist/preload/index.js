@@ -71,6 +71,12 @@ const api = {
     dialogRespond: (id, buttonIndex) => electron_1.ipcRenderer.send('dialog:respond', id, buttonIndex),
     // Resource usage
     getResourceUsage: () => electron_1.ipcRenderer.invoke('system:resource-usage'),
+    // Banner notifications (from main process)
+    onBannerNotification: (cb) => {
+        const handler = (_e, data) => cb(data);
+        electron_1.ipcRenderer.on('banner:notify', handler);
+        return () => electron_1.ipcRenderer.removeListener('banner:notify', handler);
+    },
     // Navigate (from main process)
     onNavigate: (cb) => {
         const handler = (_e, route) => cb(route);

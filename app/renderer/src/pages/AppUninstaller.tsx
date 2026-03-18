@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Package, Search, Trash2, FolderSearch, Loader2, AlertTriangle, Bomb } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
+import { useNotificationStore } from '../stores/notificationStore'
 
 interface AppInfo {
   id: string
@@ -21,6 +22,7 @@ interface Leftover {
 
 export default function AppUninstaller() {
   const { tx } = useLang()
+  const pushNotification = useNotificationStore(s => s.push)
   const [apps, setApps] = useState<AppInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
@@ -56,6 +58,7 @@ export default function AppUninstaller() {
       const result = await window.moleAPI.appUninstaller('uninstall', app.id)
       if (result.success) {
         setMessage({ text: `${app.name} ${tx('kaldirildi', 'uninstalled')}`, type: 'success' })
+        pushNotification({ type: 'success', title: `${app.name} ${tx('kaldirildi', 'uninstalled')}` })
         const data = result.data || result
         if (data.leftovers && data.leftovers.length > 0) {
           setLeftovers({ appName: app.name, items: data.leftovers })

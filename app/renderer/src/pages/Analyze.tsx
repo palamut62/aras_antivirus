@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { HardDrive, FolderOpen, Loader2, File, Folder, Search } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { HardDrive, FolderOpen, Loader2, File, Folder, Search, CheckCircle2, Copy, Check } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 
 interface FolderInfo { path: string; sizeBytes: number; fileCount: number }
@@ -11,6 +11,13 @@ export default function Analyze() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [view, setView] = useState<'folders' | 'files'>('folders')
+  const [scanLog, setScanLog] = useState<string[]>([])
+  const [logCopied, setLogCopied] = useState(false)
+  const logRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
+  }, [scanLog])
 
   const formatSize = (bytes: number) => {
     if (bytes >= 1e9) return (bytes / 1e9).toFixed(2) + ' GB'
@@ -26,14 +33,44 @@ export default function Analyze() {
     if (folder) setPathInput(folder)
   }
 
+  const appendLog = (msg: string) => setScanLog(prev => [...prev, msg])
+
   const handleAnalyze = async () => {
     if (!pathInput.trim()) return
     setLoading(true)
     setResult(null)
+    setScanLog([tx('Disk analizi başlatılıyor...', 'Starting disk analysis...')])
+
+    const steps = [
+      tx('Hedef yol doğrulanıyor...', 'Validating target path...'),
+      tx('Alt klasörler listeleniyor...', 'Listing subdirectories...'),
+      tx('Klasör boyutları hesaplanıyor...', 'Calculating folder sizes...'),
+      tx('Dosyalar taranıyor...', 'Scanning files...'),
+      tx('En büyük dosyalar sıralanıyor...', 'Sorting largest files...'),
+      tx('Boyut istatistikleri hesaplanıyor...', 'Computing size statistics...'),
+    ]
+
+    let idx = 0
+    const interval = setInterval(() => {
+      if (idx < steps.length) { appendLog(steps[idx]); idx++ }
+    }, 800)
+
     try {
       const r = await window.moleAPI.analyzeDisk(pathInput.trim())
-      if (r.success) setResult(r.data)
-    } catch {}
+      clearInterval(interval)
+      if (r.success) {
+        setResult(r.data)
+        appendLog(tx(
+          `✓ Analiz tamamlandı — ${r.data?.scannedFolders || 0} klasör, ${r.data?.totalFiles?.toLocaleString() || 0} dosya bulundu`,
+          `✓ Analysis complete — ${r.data?.scannedFolders || 0} folders, ${r.data?.totalFiles?.toLocaleString() || 0} files found`
+        ))
+      } else {
+        appendLog(tx('✗ Analiz başarısız: ' + (r.error || 'Bilinmeyen hata'), '✗ Analysis failed: ' + (r.error || 'Unknown error')))
+      }
+    } catch (e: any) {
+      clearInterval(interval)
+      appendLog(tx('✗ Hata: ' + e.message, '✗ Error: ' + e.message))
+    }
     setLoading(false)
   }
 
@@ -61,10 +98,29 @@ export default function Analyze() {
         </button>
         <button onClick={handleAnalyze} disabled={loading}
           className="flex items-center gap-2 px-5 py-2.5 bg-mole-accent hover:bg-mole-accent-hover disabled:opacity-50 rounded-lg font-medium transition-colors">
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <FolderOpen size={16} />}
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
           {loading ? tx('Taranıyor...', 'Scanning...') : tx('Analiz Et', 'Analyze')}
         </button>
       </div>
+
+      {/* Scan Log */}
+      {scanLog.length > 0 && (
+        <div ref={logRef} className="bg-mole-bg rounded-lg p-4 max-h-36 overflow-y-auto font-mono text-xs space-y-1 relative group/log">
+          <button onClick={() => { navigator.clipboard.writeText(scanLog.join('\n')); setLogCopied(true); setTimeout(() => setLogCopied(false), 1500) }}
+            className="absolute top-2 right-2 p-1.5 rounded bg-mole-surface/80 border border-mole-border opacity-0 group-hover/log:opacity-100 transition-opacity"
+            title="Copy Logs">
+            {logCopied ? <Check size={12} className="text-mole-safe" /> : <Copy size={12} className="text-mole-text-muted" />}
+          </button>
+          {scanLog.map((line, i) => (
+            <div key={i} className="flex items-center gap-2">
+              {i === scanLog.length - 1 && loading
+                ? <Loader2 size={12} className="animate-spin text-mole-accent shrink-0" />
+                : <CheckCircle2 size={12} className="text-mole-safe shrink-0" />}
+              <span className="text-mole-text-muted">{line}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {result && (
         <>

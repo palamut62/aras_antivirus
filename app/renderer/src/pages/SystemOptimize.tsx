@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Zap, Check, Loader2, StopCircle, Info } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
+import { useNotificationStore } from '../stores/notificationStore'
 
 interface OptItem {
   id: string
@@ -24,6 +25,7 @@ interface OptResult {
 
 export default function SystemOptimize() {
   const { tx, lang } = useLang()
+  const pushNotification = useNotificationStore(s => s.push)
   const [items, setItems] = useState<OptItem[]>([])
   const [loading, setLoading] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
@@ -61,6 +63,19 @@ export default function SystemOptimize() {
       const result = await window.moleAPI.systemOptimize('optimize', selected)
       if (result.success && result.data?.results) {
         setResults(result.data.results)
+        const successCount = result.data.results.filter((r: OptResult) => r.success).length
+        pushNotification({
+          type: 'success',
+          title: tx('Optimizasyon tamamlandi!', 'Optimization completed!'),
+          message: `${successCount}/${selected.length} ${tx('islem basarili', 'tasks successful')}`,
+        })
+        // Refresh status to show updated values
+        try {
+          const refreshed = await window.moleAPI.systemOptimize('status')
+          if (refreshed.success && refreshed.data?.items) {
+            setItems(refreshed.data.items.map((it: any) => ({ ...it, selected: false })))
+          }
+        } catch { /* */ }
       }
     } catch { /* */ }
     setOptimizing(false)

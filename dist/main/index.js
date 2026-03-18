@@ -9,6 +9,7 @@ const handlers_1 = require("./ipc/handlers");
 const settings_1 = require("./services/settings");
 const electron_log_1 = __importDefault(require("electron-log"));
 const background_guard_1 = require("./services/background-guard");
+const scheduled_scan_1 = require("./services/scheduled-scan");
 let mainWindow = null;
 let tray = null;
 electron_log_1.default.transports.file.level = 'info';
@@ -167,11 +168,14 @@ else {
             setupAutostart();
         if (settings.liveProtection)
             (0, background_guard_1.startBackgroundGuard)();
-        electron_log_1.default.info('Aras Antivirüs started', { liveProtection: settings.liveProtection, autoStart: settings.autoStart });
+        if (settings.scheduledScan)
+            (0, scheduled_scan_1.startScheduledScan)(mainWindow);
+        electron_log_1.default.info('Aras Antivirüs started', { liveProtection: settings.liveProtection, autoStart: settings.autoStart, scheduledScan: settings.scheduledScan });
     });
     electron_1.app.on('window-all-closed', () => { });
     electron_1.app.on('before-quit', () => {
         electron_1.app.isQuitting = true;
         (0, background_guard_1.stopBackgroundGuard)();
+        (0, scheduled_scan_1.stopScheduledScan)();
     });
 }

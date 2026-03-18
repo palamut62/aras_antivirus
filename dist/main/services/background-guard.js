@@ -10,6 +10,7 @@ exports.isGuardRunning = isGuardRunning;
 const electron_1 = require("electron");
 const powershell_1 = require("./powershell");
 const history_db_1 = require("./history-db");
+const settings_1 = require("./settings");
 const electron_log_1 = __importDefault(require("electron-log"));
 let fileWatchInterval = null;
 let networkInterval = null;
@@ -32,6 +33,19 @@ function ensureDialogListener() {
             dialogResolvers.delete(id);
         }
     });
+}
+function tx(tr, en) {
+    try {
+        return settings_1.SettingsService.get().language === 'en' ? en : tr;
+    }
+    catch {
+        return tr;
+    }
+}
+function sendBannerNotification(data) {
+    const win = mainWindowRef || electron_1.BrowserWindow.getAllWindows()[0];
+    if (win)
+        win.webContents.send('banner:notify', data);
 }
 function showInAppDialog(options) {
     ensureDialogListener();
@@ -181,18 +195,12 @@ async function checkNetwork() {
         if (result.success && result.data?.flaggedCount > 0) {
             const count = result.data.flaggedCount;
             if (count >= 3) {
-                const btnIdx = await showInAppDialog({
-                    type: 'network',
-                    title: 'Şüpheli Ağ Aktivitesi',
-                    message: `${count} şüpheli ağ bağlantısı tespit edildi`,
-                    detail: 'Ağ İzleme sayfasından detayları görüp şüpheli bağlantıları engelleyebilirsiniz.',
-                    buttons: ['Detayları Gör', 'Kapat'],
+                sendBannerNotification({
+                    type: 'warning',
+                    title: tx(`${count} şüpheli ağ bağlantısı tespit edildi`, `${count} suspicious network connections detected`),
+                    message: tx('Detayları incelemek için Ağ İzleme sayfasına gidin.', 'Go to Network Monitor for details.'),
+                    action: { label: tx('Detaylar', 'Details'), route: '/network' },
                 });
-                if (btnIdx === 0) {
-                    const win = mainWindowRef || electron_1.BrowserWindow.getAllWindows()[0];
-                    if (win)
-                        win.webContents.send('navigate', '/network');
-                }
             }
         }
     }
@@ -245,17 +253,13 @@ function startUsbWatcher() {
                 electron_log_1.default.info('[Guard] USB inserted detected:', drive);
                 // Immediate scan
                 checkUsb();
-                // Notify user
-                const win = mainWindowRef || electron_1.BrowserWindow.getAllWindows()[0];
-                if (win) {
-                    showInAppDialog({
-                        type: 'info',
-                        title: 'USB Cihazı Takıldı',
-                        message: `${drive}\\ sürücüsü algılandı, taranıyor...`,
-                        detail: 'USB sürücüsü otomatik olarak taranıyor.',
-                        buttons: ['Tamam'],
-                    });
-                }
+                // Notify user via banner (not dialog)
+                sendBannerNotification({
+                    type: 'info',
+                    title: tx(`USB Cihazı Takıldı: ${drive}\\`, `USB Device Connected: ${drive}\\`),
+                    message: tx('Sürücü otomatik olarak taranıyor...', 'Drive is being scanned automatically...'),
+                    action: { label: tx('USB İzleme', 'USB Monitor'), route: '/usb' },
+                });
             }
         });
         proc.on('exit', () => {

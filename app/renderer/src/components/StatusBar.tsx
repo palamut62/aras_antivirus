@@ -38,7 +38,7 @@ export default function StatusBar() {
   return (
     <div className="h-8 min-h-[32px] w-full bg-mole-surface/80 backdrop-blur-sm border-t border-mole-border flex items-center px-4 gap-4 text-xs z-50 transition-colors">
       {/* App info */}
-      <span className="text-[10px] text-mole-text-muted/60 font-medium shrink-0">Aras Antivirüs v1.0</span>
+      <span className="text-[10px] text-mole-text-muted/60 font-medium shrink-0">Aras Antivirüs v1.3</span>
       <div className="w-px h-3.5 bg-mole-border/50" />
 
       {/* Active task */}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FileBox, Check, Trash2, Loader2, Calendar, MapPin } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
+import { useNotificationStore } from '../stores/notificationStore'
 
 interface InstallerFile {
   path: string
@@ -16,6 +17,7 @@ interface InstallerFile {
 
 export default function InstallerCleanup() {
   const { tx } = useLang()
+  const pushNotification = useNotificationStore(s => s.push)
   const [files, setFiles] = useState<InstallerFile[]>([])
   const [scanning, setScanning] = useState(false)
   const [cleaning, setCleaning] = useState(false)
@@ -58,6 +60,11 @@ export default function InstallerCleanup() {
       if (res.success && res.data) {
         setResult({ cleaned: res.data.cleaned, cleanedSize: res.data.cleanedSize })
         setFiles(prev => prev.filter(f => !f.selected))
+        pushNotification({
+          type: 'success',
+          title: tx('Installer temizligi tamamlandi!', 'Installer cleanup completed!'),
+          message: `${res.data.cleaned} ${tx('dosya', 'files')} — ${formatSize(res.data.cleanedSize)} ${tx('kazanildi', 'freed')}`,
+        })
       }
     } catch { /* */ }
     setCleaning(false)

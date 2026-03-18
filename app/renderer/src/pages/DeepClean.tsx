@@ -1,6 +1,7 @@
 import { Sparkles, Check, StopCircle, Info, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 import { useScanStore } from '../stores/scanStore'
+import { useNotificationStore } from '../stores/notificationStore'
 
 interface Category {
   id: string
@@ -18,6 +19,7 @@ export default function DeepClean() {
   const { tx, lang } = useLang()
   const { scanning, cleaning, categories, cleanResult, taskId } = useScanStore(s => s.deepClean)
   const set = useScanStore(s => s.setDeepClean)
+  const pushNotification = useNotificationStore(s => s.push)
 
   const formatSize = (bytes: number) => {
     if (!bytes || bytes <= 0) return '0 KB'
@@ -60,8 +62,33 @@ export default function DeepClean() {
     try {
       const result = await window.moleAPI.cleanExecute(selected)
       set({ cleaning: false, cleanResult: result, taskId: null })
+
+      if (result.success) {
+        pushNotification({
+          type: 'success',
+          title: tx('Temizlik tamamlandi!', 'Cleanup completed!'),
+          message: result.data?.sizeFreed ? `${formatSize(result.data.sizeFreed)} ${tx('kazanildi', 'freed')}` : undefined,
+        })
+        // Auto re-scan to refresh categories with current state
+        set({ scanning: true, taskId: 'rescan' })
+        try {
+          const rescan = await window.moleAPI.scanRun()
+          if (rescan.success && rescan.data?.categories) {
+            set({
+              scanning: false,
+              taskId: null,
+              categories: rescan.data.categories.map((c: any) => ({ ...c, selected: c.riskLevel === 'safe' })),
+            })
+          } else {
+            set({ scanning: false, taskId: null, categories: [] })
+          }
+        } catch {
+          set({ scanning: false, taskId: null })
+        }
+      }
     } catch {
       set({ cleaning: false, taskId: null })
+      pushNotification({ type: 'error', title: tx('Temizlik basarisiz', 'Cleanup failed') })
     }
   }
 

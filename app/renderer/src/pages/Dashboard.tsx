@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { HardDrive, Trash2, Zap, Shield, Loader2, CheckCircle2, FolderSearch, AlertTriangle, StopCircle, Copy, Check } from 'lucide-react'
+import { HardDrive, Trash2, Zap, Shield, Loader2, CheckCircle2, FolderSearch, AlertTriangle, StopCircle, Copy, Check, Activity, Clock } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 import { useScanStore } from '../stores/scanStore'
+import { useNotificationStore } from '../stores/notificationStore'
 
 interface ScanCategory {
   id: string
@@ -19,6 +20,17 @@ export default function Dashboard() {
   const appendLog = useScanStore(s => s.appendDashboardLog)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [logCopied, setLogCopied] = useState(false)
+  const [recentHistory, setRecentHistory] = useState<any[]>([])
+  const notifications = useNotificationStore(s => s.notifications)
+
+  // Load recent history
+  useEffect(() => {
+    window.moleAPI.historyList(10, 0).then(setRecentHistory).catch(() => {})
+    const interval = setInterval(() => {
+      window.moleAPI.historyList(10, 0).then(setRecentHistory).catch(() => {})
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Cleanup interval on unmount (but NOT the scan itself)
   useEffect(() => {
@@ -219,6 +231,34 @@ export default function Dashboard() {
           <div className="mt-4 pt-4 border-t border-mole-border flex items-center justify-between">
             <span className="text-mole-text-muted text-sm">{tx('Toplam kazanılabilir alan', 'Total reclaimable space')}</span>
             <span className="text-xl font-bold text-mole-accent">{formatSize(scanResult.data.totalSize)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Son Aktiviteler / Recent Activity */}
+      {recentHistory.length > 0 && (
+        <div className="bg-mole-surface rounded-xl p-6 border border-mole-border">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={18} className="text-mole-accent" />
+            <h2 className="text-lg font-semibold">{tx('Son Aktiviteler', 'Recent Activity')}</h2>
+          </div>
+          <div className="space-y-1.5">
+            {recentHistory.map((h: any, i: number) => (
+              <div key={h.id || i} className="flex items-center gap-3 py-2 px-3 bg-mole-bg rounded-lg text-sm">
+                <div className={`w-2 h-2 rounded-full shrink-0 ${
+                  h.status === 'success' ? 'bg-mole-safe' : h.status === 'error' ? 'bg-mole-danger' : 'bg-mole-warning'
+                }`} />
+                <span className="font-medium shrink-0 w-20 text-mole-text-muted text-xs uppercase">{h.action}</span>
+                <span className="flex-1 truncate">{h.target}</span>
+                {h.sizeBytes > 0 && (
+                  <span className="text-xs text-mole-accent shrink-0">{formatSize(h.sizeBytes)}</span>
+                )}
+                <span className="text-xs text-mole-text-muted shrink-0 flex items-center gap-1">
+                  <Clock size={10} />
+                  {h.timestamp ? new Date(h.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}

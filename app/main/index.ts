@@ -4,6 +4,7 @@ import { registerIpcHandlers } from './ipc/handlers'
 import { SettingsService } from './services/settings'
 import log from 'electron-log'
 import { startBackgroundGuard, stopBackgroundGuard, setMainWindow } from './services/background-guard'
+import { startScheduledScan, stopScheduledScan, restartScheduledScan } from './services/scheduled-scan'
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -164,12 +165,14 @@ if (!gotTheLock) {
     const settings = SettingsService.get()
     if (settings.autoStart) setupAutostart()
     if (settings.liveProtection) startBackgroundGuard()
-    log.info('Aras Antivirüs started', { liveProtection: settings.liveProtection, autoStart: settings.autoStart })
+    if (settings.scheduledScan) startScheduledScan(mainWindow!)
+    log.info('Aras Antivirüs started', { liveProtection: settings.liveProtection, autoStart: settings.autoStart, scheduledScan: settings.scheduledScan })
   })
 
   app.on('window-all-closed', () => { /* stay in tray */ })
   app.on('before-quit', () => {
     (app as any).isQuitting = true
     stopBackgroundGuard()
+    stopScheduledScan()
   })
 }

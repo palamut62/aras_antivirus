@@ -3,9 +3,11 @@ import { useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import TitleBar from './components/TitleBar'
 import StatusBar from './components/StatusBar'
+import TopBanner from './components/TopBanner'
 import AlertDialog from './components/AlertDialog'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { LangProvider } from './contexts/LangContext'
+import { useNotificationStore } from './stores/notificationStore'
 import Dashboard from './pages/Dashboard'
 import DeepClean from './pages/DeepClean'
 import DevPurge from './pages/DevPurge'
@@ -32,6 +34,8 @@ import FileExplorer from './pages/FileExplorer'
 function AppContent() {
   const navigate = useNavigate()
 
+  const pushNotification = useNotificationStore(s => s.push)
+
   useEffect(() => {
     const cleanup = window.moleAPI.onNavigate((route: string) => {
       navigate(route)
@@ -39,9 +43,23 @@ function AppContent() {
     return cleanup
   }, [navigate])
 
+  // Listen for banner notifications from main process
+  useEffect(() => {
+    const cleanup = window.moleAPI.onBannerNotification((data) => {
+      pushNotification({
+        type: data.type as any,
+        title: data.title,
+        message: data.message,
+        action: data.action,
+      })
+    })
+    return cleanup
+  }, [pushNotification])
+
   return (
     <>
       <TitleBar />
+      <TopBanner />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto p-6 relative">

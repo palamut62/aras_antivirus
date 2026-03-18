@@ -2,6 +2,9 @@ interface MoleAPI {
   // Navigate
   onNavigate: (cb: (route: string) => void) => () => void
 
+  // Banner notifications
+  onBannerNotification: (cb: (data: { type: string; title: string; message?: string; action?: { label: string; route: string } }) => void) => () => void
+
   // Cleanup
   scanRun: () => Promise<any>
   cleanExecute: (categories: string[]) => Promise<any>

@@ -19,7 +19,7 @@ export default function TitleBar() {
           </svg>
         </div>
         <span className="text-sm font-semibold tracking-wide text-mole-text/80">Aras Antivirüs</span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-mole-accent/15 text-mole-accent font-semibold tracking-wider">v1.0</span>
+        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-mole-accent/15 text-mole-accent font-semibold tracking-wider">v1.3</span>
       </div>
 
       {/* Controls */}
