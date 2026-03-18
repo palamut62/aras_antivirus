@@ -104,7 +104,7 @@ function updateTrayMenu() {
     const settings = settings_1.SettingsService.get();
     const onOff = (v) => v ? tx('✅ Açık', '✅ On') : tx('❌ Kapalı', '❌ Off');
     const statusItems = [
-        { label: 'Aras Antivirüs v1.5.1', enabled: false },
+        { label: 'Aras Antivirüs v1.6.0', enabled: false },
         { type: 'separator' },
         { label: `${tx('Canlı Koruma', 'Live Protection')}: ${onOff(settings.liveProtection)}`, enabled: false },
         { label: `${tx('Arka Plan Koruma', 'Background Guard')}: ${guardActive ? tx('✅ Çalışıyor', '✅ Running') : tx('⏹ Durdu', '⏹ Stopped')}`, enabled: false },
