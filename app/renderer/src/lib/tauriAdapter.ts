@@ -146,6 +146,7 @@ const api = {
   settingsUpdate: (partial: any) => invoke('settings_update', { partial }),
   logsList: async (_date?: string) => [],
   logsDates: async () => [],
+  logsRuntime: async (_limit?: number) => [],
 
   // === HISTORY ===
   historyList: (limit?: number, offset?: number) => invoke('history_list', { limit, offset }),

@@ -339,6 +339,7 @@ function registerIpcHandlers() {
     });
     electron_1.ipcMain.handle('logs:list', async (_e, date) => logger_1.LoggerService.getLogs(date));
     electron_1.ipcMain.handle('logs:dates', async () => logger_1.LoggerService.getLogDates());
+    electron_1.ipcMain.handle('logs:runtime', async (_e, limit) => logger_1.LoggerService.getRuntimeLogs(limit || 500));
     // === HISTORY DB ===
     electron_1.ipcMain.handle('history:list', async (_e, limit, offset) => {
         return history_db_1.HistoryDB.getAll(limit || 100, offset || 0);

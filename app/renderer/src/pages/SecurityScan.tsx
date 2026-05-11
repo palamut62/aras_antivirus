@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { ShieldCheck, Loader2, AlertTriangle, CheckCircle2, Shield, XCircle, StopCircle, Copy, Check } from 'lucide-react'
+import { ShieldCheck, Loader2, AlertTriangle, CheckCircle2, Shield, XCircle, StopCircle, Copy, Check, Bot } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 import { useScanStore } from '../stores/scanStore'
+import { useAutopilotStore } from '../stores/autopilotStore'
 
 interface Threat {
   filePath: string
@@ -24,6 +25,10 @@ export default function SecurityScan() {
   const appendLog = useScanStore(s => s.appendSecurityLog)
   const [selectedThreat, setSelectedThreat] = useState<Threat | null>(null)
   const [logCopied, setLogCopied] = useState(false)
+  const [autopilotBusy, setAutopilotBusy] = useState(false)
+  const autopilotEnabled = useAutopilotStore(s => s.enabled)
+  const autopilotRunning = useAutopilotStore(s => s.running)
+  const setAutopilotEnabled = useAutopilotStore(s => s.setEnabled)
 
   const formatSize = (bytes: number) => {
     if (bytes >= 1e9) return (bytes / 1e9).toFixed(2) + ' GB'
@@ -132,6 +137,45 @@ export default function SecurityScan() {
           <ShieldCheck size={24} className="text-mole-accent" /> {tx('Güvenlik Taraması', 'Security Scan')}
         </h1>
         <p className="text-mole-text-muted mt-1">{tx('Dosyalarınızı tehdit ve risk analizi ile tarayın', 'Scan your files with threat and risk analysis')}</p>
+      </div>
+
+      <div className="bg-mole-surface rounded-xl p-5 border border-mole-border">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Bot size={18} className={autopilotEnabled ? 'text-mole-safe' : 'text-mole-text-muted'} />
+            <div>
+              <p className="font-medium">{tx('Autopilot Guvenlik', 'Autopilot Security')}</p>
+              <p className="text-xs text-mole-text-muted">
+                {autopilotEnabled
+                  ? tx('Autopilot acik. Guvenlik donguleri otomatik calisiyor.', 'Autopilot is enabled and security cycles run automatically.')
+                  : tx('Surekli koruma icin Autopilot acabilirsiniz.', 'Enable Autopilot for continuous protection.')}
+              </p>
+            </div>
+          </div>
+
+          {autopilotEnabled ? (
+            <div className="flex items-center gap-2 text-xs text-mole-safe">
+              <span className={`w-2 h-2 rounded-full ${autopilotRunning ? 'bg-mole-safe animate-pulse' : 'bg-mole-safe/70'}`} />
+              <span>{tx('Autopilot Acik', 'Autopilot Enabled')}</span>
+            </div>
+          ) : (
+            <button
+              disabled={autopilotBusy}
+              onClick={async () => {
+                try {
+                  setAutopilotBusy(true)
+                  await window.moleAPI.settingsUpdate({ autopilotEnabled: true })
+                  await setAutopilotEnabled(true)
+                } finally {
+                  setAutopilotBusy(false)
+                }
+              }}
+              className="px-4 py-2 text-sm rounded-lg bg-mole-accent hover:bg-mole-accent-hover disabled:opacity-60 transition-colors"
+            >
+              {autopilotBusy ? tx('Aciliyor...', 'Enabling...') : tx('Start Autopilot', 'Start Autopilot')}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Scan type selection */}

@@ -10,6 +10,7 @@ static CACHE: OnceCell<Mutex<Value>> = OnceCell::new();
 fn defaults() -> Value {
     json!({
         "liveProtection": true,
+        "autopilotEnabled": false,
         "autoStart": false,
         "dryRunDefault": false,
         "sendToRecycleBin": true,

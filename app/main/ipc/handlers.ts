@@ -349,6 +349,7 @@ export function registerIpcHandlers() {
   })
   ipcMain.handle('logs:list', async (_e, date?: string) => LoggerService.getLogs(date))
   ipcMain.handle('logs:dates', async () => LoggerService.getLogDates())
+  ipcMain.handle('logs:runtime', async (_e, limit?: number) => LoggerService.getRuntimeLogs(limit || 500))
 
   // === HISTORY DB ===
   ipcMain.handle('history:list', async (_e, limit?: number, offset?: number) => {

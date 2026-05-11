@@ -44,6 +44,7 @@ const api = {
     settingsUpdate: (partial) => electron_1.ipcRenderer.invoke('settings:update', partial),
     logsList: (date) => electron_1.ipcRenderer.invoke('logs:list', date),
     logsDates: () => electron_1.ipcRenderer.invoke('logs:dates'),
+    logsRuntime: (limit) => electron_1.ipcRenderer.invoke('logs:runtime', limit),
     // History
     historyList: (limit, offset) => electron_1.ipcRenderer.invoke('history:list', limit, offset),
     historyAdd: (entry) => electron_1.ipcRenderer.invoke('history:add', entry),

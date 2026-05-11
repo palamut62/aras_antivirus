@@ -11,6 +11,7 @@ import UpdateChecker from './components/UpdateChecker'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { LangProvider } from './contexts/LangContext'
 import { useNotificationStore } from './stores/notificationStore'
+import { useAutopilotStore } from './stores/autopilotStore'
 import Dashboard from './pages/Dashboard'
 import DeepClean from './pages/DeepClean'
 import DevPurge from './pages/DevPurge'
@@ -47,6 +48,7 @@ function AppContent() {
   const navigate = useNavigate()
 
   const pushNotification = useNotificationStore(s => s.push)
+  const initializeAutopilot = useAutopilotStore(s => s.initialize)
 
   useEffect(() => {
     const cleanup = window.moleAPI.onNavigate((route: string) => {
@@ -67,6 +69,12 @@ function AppContent() {
     })
     return cleanup
   }, [pushNotification])
+
+  useEffect(() => {
+    window.moleAPI.settingsGet()
+      .then((settings: any) => initializeAutopilot(Boolean(settings?.autopilotEnabled)))
+      .catch(() => initializeAutopilot(false))
+  }, [initializeAutopilot])
 
   return (
     <>
@@ -91,6 +99,7 @@ function AppContent() {
             <Route path="/quarantine" element={<Quarantine />} />
             <Route path="/status" element={<Status />} />
             <Route path="/logs" element={<Logs />} />
+            <Route path="/history" element={<Logs />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/file-explorer" element={<FileExplorer />} />
             <Route path="/autopilot" element={<Autopilot />} />

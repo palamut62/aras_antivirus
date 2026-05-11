@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Aras Antivirüs",
+        "title": "Aras Antivirus",
         "width": 1280,
         "height": 800,
         "minWidth": 900,
@@ -28,7 +28,7 @@
       "csp": null
     },
     "trayIcon": {
-      "iconPath": "icons/icon.png",
+      "iconPath": "icons/icon.ico",
       "iconAsTemplate": false,
       "tooltip": "Aras Antivirus"
     }
@@ -37,8 +37,8 @@
     "active": true,
     "targets": ["nsis"],
     "icon": [
-      "icons/icon.png",
-      "icons/icon.ico"
+      "icons/icon.ico",
+      "icons/icon.png"
     ],
     "publisher": "umutins62",
     "category": "Utility",

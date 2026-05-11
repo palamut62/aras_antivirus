@@ -12,7 +12,7 @@ asarUnpack:
   - backend/**/*
 win:
   target: nsis
-  icon: assets/icon.ico
+  icon: icon.ico
 nsis:
   oneClick: false
   perMachine: false

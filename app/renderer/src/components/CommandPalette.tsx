@@ -52,7 +52,7 @@ export default function CommandPalette() {
     { id: 'nav-optimize', label: 'Sistem Optimize', group: 'Sayfa', action: () => navigate('/system-optimize') },
     { id: 'nav-installer', label: 'Installer Temizle', group: 'Sayfa', action: () => navigate('/installer-cleanup') },
     { id: 'nav-files', label: 'Dosya Yöneticisi', group: 'Sayfa', action: () => navigate('/file-explorer') },
-    { id: 'nav-logs', label: 'Geçmiş', group: 'Sayfa', action: () => navigate('/logs') },
+    { id: 'nav-logs', label: 'Log Merkezi', group: 'Sayfa', action: () => navigate('/logs') },
     { id: 'nav-settings', label: 'Ayarlar', group: 'Sayfa', action: () => navigate('/settings') },
     // Actions
     { id: 'act-quick-scan', label: 'Hızlı Tarama Başlat', group: 'Eylem', action: async () => { await window.moleAPI.securityScan('quick'); navigate('/security-scan') } },
@@ -106,3 +106,4 @@ export default function CommandPalette() {
     </div>
   )
 }
+

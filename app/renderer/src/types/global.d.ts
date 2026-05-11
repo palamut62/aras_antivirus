@@ -58,6 +58,7 @@ interface MoleAPI {
   settingsUpdate: (partial: any) => Promise<any>
   logsList: (date?: string) => Promise<any[]>
   logsDates: () => Promise<string[]>
+  logsRuntime: (limit?: number) => Promise<any[]>
 
   // Guard control
   guardControl: (action: 'start' | 'stop' | 'status') => Promise<any>

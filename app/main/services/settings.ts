@@ -13,6 +13,7 @@ export interface MoleSettings {
   loggingEnabled: boolean
   language: 'tr' | 'en'
   liveProtection: boolean
+  autopilotEnabled: boolean
   autoStart: boolean
   scheduledScan: boolean
   scheduledScanInterval: 'hourly' | 'daily' | 'weekly'
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS: MoleSettings = {
   loggingEnabled: true,
   language: 'tr',
   liveProtection: true,
+  autopilotEnabled: false,
   autoStart: true,
   scheduledScan: false,
   scheduledScanInterval: 'daily',

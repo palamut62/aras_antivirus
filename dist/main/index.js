@@ -17,7 +17,7 @@ let trayUpdateInterval = null;
 electron_log_1.default.transports.file.level = 'info';
 electron_log_1.default.transports.console.level = 'debug';
 if (process.platform === 'win32') {
-    // Prevent Windows toast header from showing "electron.app.Electron" in dev/runtime.
+    // Prevent Windows toast header from showing "electron.app.Electron".
     electron_1.app.setAppUserModelId('com.aras.antivirus');
 }
 // Autostart - Windows başlangıcında çalıştır
@@ -67,7 +67,7 @@ function createWindow() {
     });
 }
 function getAssetPath(filename) {
-    // In production: app.asar/assets/ ; In dev: project_root/assets/
+    // Production: app.asar/assets ; Dev: project_root/assets
     const possiblePaths = [
         path_1.default.join(__dirname, '../../assets', filename),
         path_1.default.join(electron_1.app.getAppPath(), 'assets', filename),
@@ -82,7 +82,6 @@ function getAssetPath(filename) {
     }
     return possiblePaths[0];
 }
-// --- Dil yardımcısı ---
 function tx(tr, en) {
     try {
         return settings_1.SettingsService.get().language === 'en' ? en : tr;
@@ -106,32 +105,58 @@ function updateTrayMenu() {
         return;
     const guardActive = (0, background_guard_1.isGuardRunning)();
     const settings = settings_1.SettingsService.get();
-    const onOff = (v) => v ? tx('✅ Açık', '✅ On') : tx('❌ Kapalı', '❌ Off');
+    const onOff = (v) => (v ? tx('✅ Açık', '✅ On') : tx('❌ Kapalı', '❌ Off'));
     const statusItems = [
         { label: 'Aras Antivirüs v1.6.0', enabled: false },
         { type: 'separator' },
         { label: `${tx('Canlı Koruma', 'Live Protection')}: ${onOff(settings.liveProtection)}`, enabled: false },
-        { label: `${tx('Arka Plan Koruma', 'Background Guard')}: ${guardActive ? tx('✅ Çalışıyor', '✅ Running') : tx('⏹ Durdu', '⏹ Stopped')}`, enabled: false },
+        {
+            label: `${tx('Arka Plan Koruma', 'Background Guard')}: ${guardActive ? tx('✅ Çalışıyor', '✅ Running') : tx('⏹ Durdu', '⏹ Stopped')}`,
+            enabled: false,
+        },
         { label: `${tx('Zamanlanmış Tarama', 'Scheduled Scan')}: ${onOff(settings.scheduledScan)}`, enabled: false },
         { type: 'separator' },
     ];
     const actionItems = [
         {
             label: tx('Göster', 'Show'),
-            click: () => { mainWindow?.show(); mainWindow?.focus(); },
+            click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+            },
         },
         {
             label: tx('Hızlı Tarama', 'Quick Scan'),
-            click: () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send('navigate', '/security-scan'); },
+            click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+                mainWindow?.webContents.send('navigate', '/security-scan');
+            },
         },
         {
             label: tx('Canlı Koruma', 'Live Protection'),
-            click: () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send('navigate', '/realtime'); },
+            click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+                mainWindow?.webContents.send('navigate', '/realtime');
+            },
         },
         { type: 'separator' },
         guardActive
-            ? { label: tx('⏹ Arka Plan Korumayı Durdur', '⏹ Stop Background Guard'), click: () => { (0, background_guard_1.stopBackgroundGuard)(); addTrayLog(tx('Arka plan koruma durduruldu', 'Background guard stopped')); } }
-            : { label: tx('▶ Arka Plan Korumayı Başlat', '▶ Start Background Guard'), click: () => { (0, background_guard_1.startBackgroundGuard)(); addTrayLog(tx('Arka plan koruma başlatıldı', 'Background guard started')); } },
+            ? {
+                label: tx('⏹ Arka Plan Korumayı Durdur', '⏹ Stop Background Guard'),
+                click: () => {
+                    (0, background_guard_1.stopBackgroundGuard)();
+                    addTrayLog(tx('Arka plan koruma durduruldu', 'Background guard stopped'));
+                },
+            }
+            : {
+                label: tx('▶ Arka Plan Korumayı Başlat', '▶ Start Background Guard'),
+                click: () => {
+                    (0, background_guard_1.startBackgroundGuard)();
+                    addTrayLog(tx('Arka plan koruma başlatıldı', 'Background guard started'));
+                },
+            },
         { type: 'separator' },
     ];
     const logItems = [];
@@ -145,7 +170,11 @@ function updateTrayMenu() {
     const exitItem = [
         {
             label: tx('Çıkış', 'Exit'),
-            click: () => { electron_1.app.isQuitting = true; electron_1.app.quit(); },
+            click: () => {
+                ;
+                electron_1.app.isQuitting = true;
+                electron_1.app.quit();
+            },
         },
     ];
     const contextMenu = electron_1.Menu.buildFromTemplate([
@@ -159,11 +188,17 @@ function updateTrayMenu() {
     tray.setContextMenu(contextMenu);
 }
 function createTray() {
-    const iconPath = getAssetPath('icon.ico');
-    const icon = electron_1.nativeImage.createFromPath(iconPath);
-    tray = new electron_1.Tray(icon.resize({ width: 16, height: 16 }));
+    const trayPngPath = getAssetPath('icon.png');
+    const trayIcoPath = getAssetPath('icon.ico');
+    let trayImage = electron_1.nativeImage.createFromPath(trayPngPath);
+    if (trayImage.isEmpty())
+        trayImage = electron_1.nativeImage.createFromPath(trayIcoPath);
+    tray = new electron_1.Tray(trayImage.resize({ width: 16, height: 16 }));
     updateTrayMenu();
-    tray.on('double-click', () => { mainWindow?.show(); mainWindow?.focus(); });
+    tray.on('double-click', () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+    });
     // Tray menüsünü periyodik güncelle (durum değişiklikleri için)
     trayUpdateInterval = setInterval(updateTrayMenu, 30000);
 }
@@ -182,7 +217,6 @@ else {
     electron_1.app.whenReady().then(() => {
         settings_1.SettingsService.init();
         (0, handlers_1.registerIpcHandlers)();
-        // Window control IPC
         electron_1.ipcMain.on('window:minimize', () => mainWindow?.minimize());
         electron_1.ipcMain.on('window:maximize', () => {
             if (mainWindow?.isMaximized())
@@ -191,7 +225,6 @@ else {
                 mainWindow?.maximize();
         });
         electron_1.ipcMain.on('window:close', () => mainWindow?.hide());
-        // Guard control
         electron_1.ipcMain.handle('guard:control', async (_e, action) => {
             if (action === 'start') {
                 (0, background_guard_1.startBackgroundGuard)();
@@ -205,7 +238,6 @@ else {
             }
             return { running: (0, background_guard_1.isGuardRunning)() };
         });
-        // Folder picker dialog
         electron_1.ipcMain.handle('dialog:pick-folder', async () => {
             const result = await electron_1.dialog.showOpenDialog(mainWindow, {
                 properties: ['openDirectory'],
@@ -218,7 +250,6 @@ else {
             (0, background_guard_1.setMainWindow)(mainWindow);
         createTray();
         const settings = settings_1.SettingsService.get();
-        // VT API key'i env variable olarak ayarla (PS scriptleri kullanır)
         if (settings.virusTotalApiKey) {
             process.env.VIRUSTOTAL_API_KEY = settings.virusTotalApiKey;
         }
@@ -233,10 +264,17 @@ else {
             addTrayLog(tx('Zamanlanmış tarama aktif', 'Scheduled scan active'));
         }
         addTrayLog(tx('Aras Antivirüs başlatıldı', 'Aras Antivirus started'));
-        electron_log_1.default.info('Aras Antivirüs started', { liveProtection: settings.liveProtection, autoStart: settings.autoStart, scheduledScan: settings.scheduledScan });
+        electron_log_1.default.info('Aras Antivirüs started', {
+            liveProtection: settings.liveProtection,
+            autoStart: settings.autoStart,
+            scheduledScan: settings.scheduledScan,
+        });
     });
-    electron_1.app.on('window-all-closed', () => { });
+    electron_1.app.on('window-all-closed', () => {
+        // stay in tray
+    });
     electron_1.app.on('before-quit', () => {
+        ;
         electron_1.app.isQuitting = true;
         (0, background_guard_1.stopBackgroundGuard)();
         (0, scheduled_scan_1.stopScheduledScan)();

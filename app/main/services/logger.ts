@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import electronLog from 'electron-log'
 
 export interface OperationLog {
   timestamp: string
@@ -10,6 +11,14 @@ export interface OperationLog {
   sizeFreed: number
   status: 'success' | 'partial' | 'error'
   details?: string
+}
+
+export interface RuntimeLogEntry {
+  timestamp: string
+  level: 'info' | 'warn' | 'error' | 'debug'
+  source: string
+  message: string
+  raw: string
 }
 
 let logDir = ''
@@ -56,5 +65,57 @@ export class LoggerService {
     } catch {
       return []
     }
+  }
+
+  static getRuntimeLogs(limit = 500): RuntimeLogEntry[] {
+    const candidates = [
+      (() => {
+        try { return electronLog.transports.file.getFile().path } catch { return '' }
+      })(),
+      path.join(app.getPath('userData'), 'logs', 'main.log'),
+      path.join(app.getPath('userData'), 'logs', 'renderer.log'),
+    ].filter(Boolean)
+
+    let selectedPath = ''
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) {
+          selectedPath = p
+          break
+        }
+      } catch {}
+    }
+    if (!selectedPath) return []
+
+    let lines: string[] = []
+    try {
+      lines = fs.readFileSync(selectedPath, 'utf-8').split(/\r?\n/).filter(Boolean)
+    } catch {
+      return []
+    }
+
+    const tail = lines.slice(-Math.max(1, limit))
+    return tail.map((raw) => {
+      const m = raw.match(/^\[([^\]]+)\]\s+\[([^\]]+)\]\s+(.*)$/)
+      const timestamp = m?.[1] || ''
+      const levelRaw = (m?.[2] || 'info').toLowerCase()
+      const message = m?.[3] || raw
+      const level: RuntimeLogEntry['level'] =
+        levelRaw.includes('error') ? 'error'
+          : levelRaw.includes('warn') ? 'warn'
+            : levelRaw.includes('debug') ? 'debug'
+              : 'info'
+
+      const srcMatch = message.match(/^\[([^\]]+)\]\s*/)
+      const source = srcMatch?.[1] || 'app'
+
+      return {
+        timestamp,
+        level,
+        source,
+        message,
+        raw,
+      }
+    })
   }
 }

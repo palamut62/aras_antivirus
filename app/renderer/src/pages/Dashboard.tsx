@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { HardDrive, Trash2, Zap, Shield, Loader2, CheckCircle2, FolderSearch, AlertTriangle, StopCircle, Copy, Check, Activity, Clock, Sparkles, ListChecks, ShieldCheck, ExternalLink, Download } from 'lucide-react'
+import { HardDrive, Trash2, Zap, Shield, Loader2, CheckCircle2, FolderSearch, AlertTriangle, StopCircle, Copy, Check, Activity, Clock, Sparkles, ListChecks, ShieldCheck, ExternalLink, Download, X, Info } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 import { useScanStore } from '../stores/scanStore'
 import { useNotificationStore } from '../stores/notificationStore'
@@ -14,6 +14,25 @@ interface ScanCategory {
   riskLevel: string
 }
 
+interface HistoryEntry {
+  id: string
+  timestamp: string
+  action: 'scan' | 'clean' | 'quarantine' | 'restore' | 'delete' | 'purge' | 'block'
+  target: string
+  details: string
+  riskScore?: number
+  sizeBytes?: number
+  status: 'success' | 'error' | 'cancelled'
+}
+
+interface HistoryInsight {
+  objectLabel: string
+  objectDetail: string
+  deleteImpact: string
+  keepImpact: string
+  recommendation: string
+}
+
 export default function Dashboard() {
   const { tx } = useLang()
   const { scanning, scanResult, scanLog, taskId } = useScanStore(s => s.dashboard)
@@ -21,7 +40,9 @@ export default function Dashboard() {
   const appendLog = useScanStore(s => s.appendDashboardLog)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [logCopied, setLogCopied] = useState(false)
-  const [recentHistory, setRecentHistory] = useState<any[]>([])
+  const [recentHistory, setRecentHistory] = useState<HistoryEntry[]>([])
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
+  const [historyDialogEntry, setHistoryDialogEntry] = useState<HistoryEntry | null>(null)
   const notifications = useNotificationStore(s => s.notifications)
   const pushNotif = useNotificationStore(s => s.push)
   const navigate = useNavigate()
@@ -46,6 +67,20 @@ export default function Dashboard() {
     }, 15000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (recentHistory.length === 0) {
+      if (selectedHistoryId !== null) setSelectedHistoryId(null)
+      return
+    }
+    if (!selectedHistoryId) {
+      setSelectedHistoryId(recentHistory[0].id)
+      return
+    }
+    if (!recentHistory.some(h => h.id === selectedHistoryId)) {
+      setSelectedHistoryId(recentHistory[0].id)
+    }
+  }, [recentHistory, selectedHistoryId])
 
   // Cleanup interval on unmount (but NOT the scan itself)
   useEffect(() => {
@@ -194,6 +229,112 @@ export default function Dashboard() {
     if (level === 'review') return <AlertTriangle size={14} className="text-mole-warning" />
     return <Shield size={14} className="text-mole-danger" />
   }
+
+  const actionToRoute: Record<HistoryEntry['action'], string> = {
+    scan: '/status',
+    clean: '/deep-clean',
+    quarantine: '/quarantine',
+    restore: '/quarantine',
+    delete: '/logs',
+    purge: '/dev-purge',
+    block: '/web-protection',
+  }
+
+  const actionLabel = (action: HistoryEntry['action']) => {
+    const labels: Record<HistoryEntry['action'], string> = {
+      scan: tx('Tarama', 'Scan'),
+      clean: tx('Temizlik', 'Cleanup'),
+      quarantine: tx('Karantina', 'Quarantine'),
+      restore: tx('Geri Yukleme', 'Restore'),
+      delete: tx('Silme', 'Delete'),
+      purge: 'Purge',
+      block: tx('Engelleme', 'Block'),
+    }
+    return labels[action] || action
+  }
+
+  const statusLabel = (status: HistoryEntry['status']) => {
+    const labels: Record<HistoryEntry['status'], string> = {
+      success: tx('Basarili', 'Success'),
+      error: tx('Hatali', 'Error'),
+      cancelled: tx('Iptal', 'Cancelled'),
+    }
+    return labels[status] || status
+  }
+
+  const getHistoryInsight = (entry: HistoryEntry): HistoryInsight => {
+    const raw = `${entry.target} ${entry.details || ''}`.toLowerCase()
+
+    const targetMap = [
+      { keys: ['windows_temp', 'windows temp'], label: 'Windows Temp', detail: tx('Windows ve kurulumlarin gecici dosyalari.', 'Temporary files created by Windows and installers.') },
+      { keys: ['chrome_cache', 'chrome cache'], label: 'Chrome Cache', detail: tx('Chrome tarayici onbellek dosyalari.', 'Cached web files used by Chrome.') },
+      { keys: ['edge_cache', 'edge cache'], label: 'Edge Cache', detail: tx('Edge tarayici onbellek dosyalari.', 'Cached web files used by Edge.') },
+      { keys: ['thumbnail_cache', 'thumbnail cache'], label: 'Thumbnail Cache', detail: tx('Gorsel kucuk resim onizleme onbellekleri.', 'Thumbnail preview cache files.') },
+      { keys: ['npm_cache', 'npm cache'], label: 'NPM Cache', detail: tx('Node paket yoneticisi gecici onbellek dosyalari.', 'Temporary cache files created by npm.') },
+      { keys: ['pip_cache', 'pip cache'], label: 'PIP Cache', detail: tx('Python paket yoneticisi onbellek dosyalari.', 'Temporary cache files created by pip.') },
+      { keys: ['recycle', 'geri donusum', 'recycle bin'], label: tx('Geri Donusum Kutusu', 'Recycle Bin'), detail: tx('Silinmis dosyalarin bekledigi alan.', 'Storage area for deleted files.') },
+    ]
+
+    const mapped = targetMap.find(m => m.keys.some(k => raw.includes(k)))
+    const objectLabel = mapped?.label || entry.target
+    const objectDetail = mapped?.detail || tx('Bu kayit bir sistem islemi ozetidir.', 'This record summarizes a system operation.')
+
+    if (entry.action === 'scan') {
+      return {
+        objectLabel,
+        objectDetail,
+        deleteImpact: tx('Bu satir tarama sonucudur, henuz silme yapilmamistir. Gorulen GB degeri temizlenebilir alan tahminidir.', 'This row is a scan result; nothing has been deleted yet. The GB value is an estimate of reclaimable space.'),
+        keepImpact: tx('Temizlik yapmazsaniz sistem ayni sekilde calismaya devam eder; sadece gecici dosyalar diskte kalir.', 'If you do not clean, the system keeps working the same way; temporary files simply remain on disk.'),
+        recommendation: tx('Detayli inceleme icin Derin Temizlik ekranindan kategori bazli karar verin.', 'For precise control, review categories in Deep Clean before deleting anything.'),
+      }
+    }
+
+    if (entry.action === 'clean' || entry.action === 'purge' || entry.action === 'delete') {
+      return {
+        objectLabel,
+        objectDetail,
+        deleteImpact: tx('Bu kayitta temizlik/silme islemi uygulanmis. Kazanilan alan kalici olur.', 'Cleanup/delete has already been applied in this record. Reclaimed space remains available.'),
+        keepImpact: tx('Ayni hedefler silinmese disk dolulugu artar; performans etkisi genelde depolama baskisina baglidir.', 'If these targets are kept, disk usage increases; performance impact depends on storage pressure.'),
+        recommendation: tx('Sistem dosyalarina ait gorunen satirlarda once Logs/Deep Clean ekranindan hedefi dogrulayin.', 'For system-related targets, verify exact paths in Logs/Deep Clean before future deletions.'),
+      }
+    }
+
+    if (entry.action === 'quarantine' || entry.action === 'restore') {
+      return {
+        objectLabel,
+        objectDetail,
+        deleteImpact: tx('Karantina islemlerinde dosya izolasyona alinmis veya geri yuklenmis olabilir.', 'Quarantine operations indicate files were isolated or restored.'),
+        keepImpact: tx('Supheli dosya geri yuklu kalirsa risk devam edebilir; karantinada kalirsa calistirilamaz.', 'If suspicious files stay restored, risk may continue; if quarantined, they cannot execute.'),
+        recommendation: tx('Bu tur kayitlari Karantina ekranindan dosya bazinda yonetin.', 'Manage these entries per file from the Quarantine page.'),
+      }
+    }
+
+    return {
+      objectLabel,
+      objectDetail,
+      deleteImpact: tx('Bu islem satiri bilgilendirme amaclidir; etkiler islem tipine gore degisir.', 'This operation row is informational; impact depends on action type.'),
+      keepImpact: tx('Islem yapilmadiginda mevcut durum korunur.', 'When no action is taken, current state remains unchanged.'),
+      recommendation: tx('Detayli islem gecmisi icin Tum gecmisi ac secenegini kullanin.', 'Use Open full history for full operation details.'),
+    }
+  }
+
+  const looksLikePath = (value: string) => /^[a-zA-Z]:\\/.test(value) || value.startsWith('\\\\')
+
+  const openHistoryTarget = async (entry: HistoryEntry) => {
+    if (!looksLikePath(entry.target)) return
+    try {
+      await window.moleAPI.fileOpen(entry.target)
+    } catch {
+      pushNotif({
+        type: 'error',
+        title: tx('Hedef acilamadi', 'Could not open target'),
+        message: entry.target,
+      })
+    }
+  }
+
+  const dialogEntry = historyDialogEntry
+  const dialogInsight = dialogEntry ? getHistoryInsight(dialogEntry) : null
 
   return (
     <div className="space-y-6">
@@ -391,33 +532,149 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Son Aktiviteler / Recent Activity */}
+            {/* Son Aktiviteler / Recent Activity */}
       {recentHistory.length > 0 && (
         <div className="bg-mole-surface rounded-xl p-6 border border-mole-border">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity size={18} className="text-mole-accent" />
-            <h2 className="text-lg font-semibold">{tx('Son Aktiviteler', 'Recent Activity')}</h2>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <Activity size={18} className="text-mole-accent" />
+              <h2 className="text-lg font-semibold">{tx('Son Aktiviteler', 'Recent Activity')}</h2>
+            </div>
+            <button
+              onClick={() => navigate('/logs')}
+              className="text-xs px-3 py-1.5 rounded border border-mole-border hover:bg-mole-bg transition-colors"
+            >
+              {tx('Tum gecmisi ac', 'Open full history')}
+            </button>
           </div>
+          <p className="text-xs text-mole-text-muted mb-3">
+            {tx('Satira tiklayarak detay dialogunu acabilirsiniz.', 'Click a row to open the detail dialog.')}
+          </p>
           <div className="space-y-1.5">
-            {recentHistory.map((h: any, i: number) => (
-              <div key={h.id || i} className="flex items-center gap-3 py-2 px-3 bg-mole-bg rounded-lg text-sm">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${
-                  h.status === 'success' ? 'bg-mole-safe' : h.status === 'error' ? 'bg-mole-danger' : 'bg-mole-warning'
-                }`} />
-                <span className="font-medium shrink-0 w-20 text-mole-text-muted text-xs uppercase">{h.action}</span>
-                <span className="flex-1 truncate">{h.target}</span>
-                {h.sizeBytes > 0 && (
-                  <span className="text-xs text-mole-accent shrink-0">{formatSize(h.sizeBytes)}</span>
-                )}
-                <span className="text-xs text-mole-text-muted shrink-0 flex items-center gap-1">
-                  <Clock size={10} />
-                  {h.timestamp ? new Date(h.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'}
-                </span>
+            {recentHistory.map((h: HistoryEntry, i: number) => {
+              const isActive = selectedHistoryId === h.id
+              return (
+                <button
+                  key={h.id || i}
+                  onClick={() => { setSelectedHistoryId(h.id); setHistoryDialogEntry(h) }}
+                  className={`w-full flex items-center gap-3 py-2 px-3 rounded-lg text-sm text-left border transition-colors ${
+                    isActive
+                      ? 'bg-mole-accent/10 border-mole-accent/40'
+                      : 'bg-mole-bg border-transparent hover:border-mole-border'
+                  }`}
+                >
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${
+                    h.status === 'success' ? 'bg-mole-safe' : h.status === 'error' ? 'bg-mole-danger' : 'bg-mole-warning'
+                  }`} />
+                  <span className="font-medium shrink-0 w-20 text-mole-text-muted text-xs uppercase">{actionLabel(h.action)}</span>
+                  <span className="flex-1 truncate">{h.target}</span>
+                  {h.sizeBytes && h.sizeBytes > 0 && (
+                    <span className="text-xs text-mole-accent shrink-0">{formatSize(h.sizeBytes)}</span>
+                  )}
+                  <span className="text-xs text-mole-text-muted shrink-0 flex items-center gap-1">
+                    <Clock size={10} />
+                    {h.timestamp ? new Date(h.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '--'}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {dialogEntry && dialogInsight && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
+          <div className="absolute inset-0" onClick={() => setHistoryDialogEntry(null)} />
+          <div className="relative w-full max-w-3xl rounded-2xl border border-mole-border bg-mole-surface shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar">
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-mole-border bg-mole-surface/95 backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <Info size={16} className="text-mole-accent" />
+                <h3 className="text-base font-semibold">{tx('Aktivite Detayi', 'Activity Detail')}</h3>
               </div>
-            ))}
+              <button
+                onClick={() => setHistoryDialogEntry(null)}
+                className="p-1.5 rounded hover:bg-mole-bg text-mole-text-muted hover:text-mole-text transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-mole-bg rounded-lg p-3 border border-mole-border">
+                  <p className="text-xs text-mole-text-muted mb-1">{tx('Islem', 'Action')}</p>
+                  <p className="font-semibold">{actionLabel(dialogEntry.action)}</p>
+                </div>
+                <div className="bg-mole-bg rounded-lg p-3 border border-mole-border">
+                  <p className="text-xs text-mole-text-muted mb-1">{tx('Durum', 'Status')}</p>
+                  <p className="font-semibold">{statusLabel(dialogEntry.status)}</p>
+                </div>
+                <div className="bg-mole-bg rounded-lg p-3 border border-mole-border">
+                  <p className="text-xs text-mole-text-muted mb-1">{tx('Zaman', 'Time')}</p>
+                  <p className="font-semibold">{new Date(dialogEntry.timestamp).toLocaleString()}</p>
+                </div>
+                <div className="bg-mole-bg rounded-lg p-3 border border-mole-border">
+                  <p className="text-xs text-mole-text-muted mb-1">{tx('Boyut', 'Size')}</p>
+                  <p className="font-semibold">{dialogEntry.sizeBytes && dialogEntry.sizeBytes > 0 ? formatSize(dialogEntry.sizeBytes) : '--'}</p>
+                </div>
+              </div>
+
+              <div className="bg-mole-bg rounded-lg p-4 border border-mole-border">
+                <p className="text-xs text-mole-text-muted mb-1">{tx('Nedir?', 'What is this?')}</p>
+                <p className="font-semibold text-sm">{dialogInsight.objectLabel}</p>
+                <p className="text-xs text-mole-text-muted mt-1">{dialogInsight.objectDetail}</p>
+              </div>
+
+              {dialogEntry.details && (
+                <div className="bg-mole-bg rounded-lg p-4 border border-mole-border">
+                  <p className="text-xs text-mole-text-muted mb-1">{tx('Teknik Detay', 'Technical Detail')}</p>
+                  <p className="text-sm">{dialogEntry.details}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="bg-mole-danger/10 rounded-lg p-4 border border-mole-danger/30">
+                  <p className="text-xs font-semibold text-mole-danger mb-1">{tx('Silinirse/Temizlenirse', 'If deleted/cleaned')}</p>
+                  <p className="text-xs text-mole-text-muted">{dialogInsight.deleteImpact}</p>
+                </div>
+                <div className="bg-mole-warning/10 rounded-lg p-4 border border-mole-warning/30">
+                  <p className="text-xs font-semibold text-mole-warning mb-1">{tx('Silinmezse', 'If kept')}</p>
+                  <p className="text-xs text-mole-text-muted">{dialogInsight.keepImpact}</p>
+                </div>
+              </div>
+
+              <div className="bg-mole-accent/10 rounded-lg p-4 border border-mole-accent/30">
+                <p className="text-xs font-semibold text-mole-accent mb-1">{tx('Oneri', 'Recommendation')}</p>
+                <p className="text-xs text-mole-text-muted">{dialogInsight.recommendation}</p>
+              </div>
+
+              <div className="pt-1 flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => navigate(actionToRoute[dialogEntry.action] || '/logs')}
+                  className="px-3 py-2 text-xs rounded bg-mole-accent hover:bg-mole-accent-hover transition-colors"
+                >
+                  {tx('Ilgili ekrana git', 'Open related page')}
+                </button>
+                {looksLikePath(dialogEntry.target) && (
+                  <button
+                    onClick={() => openHistoryTarget(dialogEntry)}
+                    className="px-3 py-2 text-xs rounded border border-mole-border hover:bg-mole-bg transition-colors"
+                  >
+                    {tx('Hedefi ac', 'Open target')}
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate('/logs')}
+                  className="px-3 py-2 text-xs rounded border border-mole-border hover:bg-mole-bg transition-colors"
+                >
+                  {tx('Tum gecmisi ac', 'Open full history')}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
     </div>
   )
 }
+

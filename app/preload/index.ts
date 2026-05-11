@@ -55,6 +55,7 @@ const api = {
   settingsUpdate: (partial: any) => ipcRenderer.invoke('settings:update', partial),
   logsList: (date?: string) => ipcRenderer.invoke('logs:list', date),
   logsDates: () => ipcRenderer.invoke('logs:dates'),
+  logsRuntime: (limit?: number) => ipcRenderer.invoke('logs:runtime', limit),
 
   // History
   historyList: (limit?: number, offset?: number) => ipcRenderer.invoke('history:list', limit, offset),

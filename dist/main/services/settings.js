@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS = {
     loggingEnabled: true,
     language: 'tr',
     liveProtection: true,
+    autopilotEnabled: false,
     autoStart: true,
     scheduledScan: false,
     scheduledScanInterval: 'daily',

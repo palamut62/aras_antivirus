@@ -7,6 +7,7 @@ exports.LoggerService = void 0;
 const electron_1 = require("electron");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const electron_log_1 = __importDefault(require("electron-log"));
 let logDir = '';
 class LoggerService {
     static init() {
@@ -49,6 +50,59 @@ class LoggerService {
         catch {
             return [];
         }
+    }
+    static getRuntimeLogs(limit = 500) {
+        const candidates = [
+            (() => {
+                try {
+                    return electron_log_1.default.transports.file.getFile().path;
+                }
+                catch {
+                    return '';
+                }
+            })(),
+            path_1.default.join(electron_1.app.getPath('userData'), 'logs', 'main.log'),
+            path_1.default.join(electron_1.app.getPath('userData'), 'logs', 'renderer.log'),
+        ].filter(Boolean);
+        let selectedPath = '';
+        for (const p of candidates) {
+            try {
+                if (fs_1.default.existsSync(p)) {
+                    selectedPath = p;
+                    break;
+                }
+            }
+            catch { }
+        }
+        if (!selectedPath)
+            return [];
+        let lines = [];
+        try {
+            lines = fs_1.default.readFileSync(selectedPath, 'utf-8').split(/\r?\n/).filter(Boolean);
+        }
+        catch {
+            return [];
+        }
+        const tail = lines.slice(-Math.max(1, limit));
+        return tail.map((raw) => {
+            const m = raw.match(/^\[([^\]]+)\]\s+\[([^\]]+)\]\s+(.*)$/);
+            const timestamp = m?.[1] || '';
+            const levelRaw = (m?.[2] || 'info').toLowerCase();
+            const message = m?.[3] || raw;
+            const level = levelRaw.includes('error') ? 'error'
+                : levelRaw.includes('warn') ? 'warn'
+                    : levelRaw.includes('debug') ? 'debug'
+                        : 'info';
+            const srcMatch = message.match(/^\[([^\]]+)\]\s*/);
+            const source = srcMatch?.[1] || 'app';
+            return {
+                timestamp,
+                level,
+                source,
+                message,
+                raw,
+            };
+        });
     }
 }
 exports.LoggerService = LoggerService;

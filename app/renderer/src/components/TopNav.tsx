@@ -63,7 +63,15 @@ const categories: { id: string; label: string; icon: any; items: Item[] }[] = [
       { to: '/system-optimize', label: 'Sistem Optimize', icon: Zap },
       { to: '/file-explorer', label: 'Dosya Yöneticisi', icon: FolderOpen },
       { to: '/status', label: 'Sistem Durumu', icon: Activity },
-      { to: '/logs', label: 'Geçmiş', icon: FileText },
+      { to: '/logs', label: 'Log Merkezi', icon: FileText },
+    ],
+  },
+  {
+    id: 'logs',
+    label: 'Loglar',
+    icon: FileText,
+    items: [
+      { to: '/logs', label: 'Log Merkezi', icon: FileText },
     ],
   },
   {
@@ -91,7 +99,6 @@ export default function TopNav() {
 
   return (
     <div className="border-b border-mole-border bg-mole-surface/40 backdrop-blur-sm shrink-0">
-      {/* Top bar */}
       <div className="flex items-center gap-3 px-4 h-12">
         <button onClick={() => nav('/')}
           className={`flex items-center gap-2 px-2 py-1 rounded font-bold text-sm ${isHome ? 'text-mole-accent' : 'text-mole-text hover:text-mole-accent'}`}>
@@ -120,6 +127,19 @@ export default function TopNav() {
 
         <div className="flex-1" />
 
+        <button
+          onClick={() => nav('/logs')}
+          className={`flex items-center gap-2 px-3 py-1 text-xs border rounded transition-colors ${
+            loc.pathname === '/logs'
+              ? 'bg-mole-accent/15 text-mole-accent border-mole-accent/40'
+              : 'text-mole-text-muted bg-mole-bg/60 border-mole-border hover:bg-mole-bg hover:text-mole-text'
+          }`}
+          title={tx('Log Merkezi', 'Logs Hub')}
+        >
+          <FileText size={12} />
+          <span className="hidden sm:inline">{tx('Log Merkezi', 'Logs Hub')}</span>
+        </button>
+
         <button onClick={triggerSearch}
           className="flex items-center gap-2 px-3 py-1 text-xs text-mole-text-muted bg-mole-bg/60 border border-mole-border rounded hover:bg-mole-bg">
           <Search size={12} />
@@ -128,7 +148,6 @@ export default function TopNav() {
         </button>
       </div>
 
-      {/* Sub-tab row (only when a category is active) */}
       {activeCategory && (
         <div className="px-4 h-10 flex items-center gap-1 overflow-x-auto border-t border-mole-border/50">
           {activeCategory.items.map(it => {
