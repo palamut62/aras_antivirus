@@ -11,11 +11,28 @@ const powershell_1 = require("./powershell");
 const settings_1 = require("./settings");
 const history_db_1 = require("./history-db");
 const electron_log_1 = __importDefault(require("electron-log"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 let scanInterval = null;
 let mainWindowRef = null;
 // Bildirim deduplication
 const recentBanners = new Map();
 const BANNER_COOLDOWN = 10 * 60 * 1000;
+function getNotificationIconPath() {
+    const candidates = [
+        path_1.default.join(__dirname, '../../assets/icon.ico'),
+        path_1.default.join(electron_1.app.getAppPath(), 'assets', 'icon.ico'),
+        path_1.default.join(process.resourcesPath || '', 'assets', 'icon.ico'),
+    ];
+    for (const p of candidates) {
+        try {
+            if (fs_1.default.existsSync(p))
+                return p;
+        }
+        catch { }
+    }
+    return undefined;
+}
 function formatSize(bytes) {
     if (bytes >= 1e9)
         return (bytes / 1e9).toFixed(2) + ' GB';
@@ -29,7 +46,6 @@ function tx(tr, en) {
     return settings_1.SettingsService.get().language === 'en' ? en : tr;
 }
 function sendBanner(data) {
-    // Deduplication
     const key = `${data.type}:${data.title}`;
     const now = Date.now();
     for (const [k, t] of recentBanners) {
@@ -48,6 +64,8 @@ function sendBanner(data) {
         const toast = new electron_1.Notification({
             title: 'Aras Antivirüs',
             body: `${data.title}${data.message ? '\n' + data.message : ''}`,
+            icon: getNotificationIconPath(),
+            silent: false,
         });
         if (data.action && win) {
             toast.on('click', () => {
@@ -131,7 +149,6 @@ function startScheduledScan(win) {
         return;
     const intervalMs = getIntervalMs();
     electron_log_1.default.info(`[ScheduledScan] Started, interval: ${intervalMs / 3600000}h`);
-    // First scan after 2 minutes (don't scan immediately on boot)
     setTimeout(() => {
         if (settings_1.SettingsService.get().scheduledScan) {
             runScheduledScan();

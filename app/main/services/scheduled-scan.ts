@@ -1,8 +1,10 @@
-import { BrowserWindow, Notification } from 'electron'
+﻿import { BrowserWindow, Notification, app } from 'electron'
 import { runPowerShell } from './powershell'
 import { SettingsService } from './settings'
 import { HistoryDB } from './history-db'
 import log from 'electron-log'
+import path from 'path'
+import fs from 'fs'
 
 let scanInterval: NodeJS.Timeout | null = null
 let mainWindowRef: BrowserWindow | null = null
@@ -10,6 +12,20 @@ let mainWindowRef: BrowserWindow | null = null
 // Bildirim deduplication
 const recentBanners = new Map<string, number>()
 const BANNER_COOLDOWN = 10 * 60 * 1000
+
+function getNotificationIconPath(): string | undefined {
+  const candidates = [
+    path.join(__dirname, '../../assets/icon.ico'),
+    path.join(app.getAppPath(), 'assets', 'icon.ico'),
+    path.join(process.resourcesPath || '', 'assets', 'icon.ico'),
+  ]
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p
+    } catch {}
+  }
+  return undefined
+}
 
 function formatSize(bytes: number): string {
   if (bytes >= 1e9) return (bytes / 1e9).toFixed(2) + ' GB'
@@ -23,7 +39,6 @@ function tx(tr: string, en: string): string {
 }
 
 function sendBanner(data: { type: string; title: string; message?: string; action?: { label: string; route: string } }) {
-  // Deduplication
   const key = `${data.type}:${data.title}`
   const now = Date.now()
   for (const [k, t] of recentBanners) {
@@ -41,6 +56,8 @@ function sendBanner(data: { type: string; title: string; message?: string; actio
     const toast = new Notification({
       title: 'Aras Antivirüs',
       body: `${data.title}${data.message ? '\n' + data.message : ''}`,
+      icon: getNotificationIconPath(),
+      silent: false,
     })
     if (data.action && win) {
       toast.on('click', () => {
@@ -134,7 +151,6 @@ export function startScheduledScan(win?: BrowserWindow) {
   const intervalMs = getIntervalMs()
   log.info(`[ScheduledScan] Started, interval: ${intervalMs / 3600000}h`)
 
-  // First scan after 2 minutes (don't scan immediately on boot)
   setTimeout(() => {
     if (SettingsService.get().scheduledScan) {
       runScheduledScan()

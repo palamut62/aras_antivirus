@@ -19,15 +19,27 @@ interface NotificationState {
   clear: () => void
 }
 
-export const useNotificationStore = create<NotificationState>((set) => ({
+const DUPLICATE_COOLDOWN_MS = 8000
+
+export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
 
   push: (n) => {
+    const now = Date.now()
+    const duplicate = get().notifications.find((item) =>
+      item.type === n.type &&
+      item.title === n.title &&
+      (item.message || '') === (n.message || '') &&
+      (item.action?.route || '') === (n.action?.route || '') &&
+      now - item.createdAt < DUPLICATE_COOLDOWN_MS
+    )
+    if (duplicate) return duplicate.id
+
     const id = 'notif_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)
     const notification: AppNotification = {
       ...n,
       id,
-      createdAt: Date.now(),
+      createdAt: now,
       autoDismiss: n.autoDismiss ?? 5000,
     }
     set((s) => ({ notifications: [...s.notifications, notification] }))

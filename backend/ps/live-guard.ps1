@@ -31,6 +31,11 @@ foreach ($watchPath in $WatchPaths) {
 
     foreach ($file in $newFiles) {
         $ext = $file.Extension.ToLower()
+        $name = $file.Name
+
+        # PowerShell execution policy probe files are temporary self-generated files.
+        # Treating them as threats creates noisy false positives.
+        if ($name -like "__PSScriptPolicyTest_*") { continue }
 
         # Skip safe/source extensions entirely for performance
         if ($ext -in $safeExtensions -or $ext -in $devSourceExtensions) { continue }
@@ -82,7 +87,6 @@ foreach ($watchPath in $WatchPaths) {
         }
 
         # Double extension
-        $name = $file.Name
         if ($name -match '\.\w{2,4}\.(exe|scr|com|pif|bat|cmd|vbs|ps1|hta)$') {
             $risk += 30
             $reason += "Double extension trick"

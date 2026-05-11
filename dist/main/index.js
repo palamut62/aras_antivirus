@@ -16,6 +16,10 @@ let tray = null;
 let trayUpdateInterval = null;
 electron_log_1.default.transports.file.level = 'info';
 electron_log_1.default.transports.console.level = 'debug';
+if (process.platform === 'win32') {
+    // Prevent Windows toast header from showing "electron.app.Electron" in dev/runtime.
+    electron_1.app.setAppUserModelId('com.aras.antivirus');
+}
 // Autostart - Windows başlangıcında çalıştır
 function setupAutostart() {
     electron_1.app.setLoginItemSettings({

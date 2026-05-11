@@ -12,6 +12,8 @@ const powershell_1 = require("./powershell");
 const history_db_1 = require("./history-db");
 const settings_1 = require("./settings");
 const electron_log_1 = __importDefault(require("electron-log"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 let fileWatchInterval = null;
 let networkInterval = null;
 let usbInterval = null;
@@ -21,6 +23,21 @@ let mainWindowRef = null;
 // Bildirim deduplication - aynı bildirimi tekrar gösterme
 const recentNotifications = new Map(); // key → timestamp
 const NOTIFICATION_COOLDOWN = 10 * 60 * 1000; // 10 dakika
+function getNotificationIconPath() {
+    const candidates = [
+        path_1.default.join(__dirname, '../../assets/icon.ico'),
+        path_1.default.join(electron_1.app.getAppPath(), 'assets', 'icon.ico'),
+        path_1.default.join(process.resourcesPath || '', 'assets', 'icon.ico'),
+    ];
+    for (const p of candidates) {
+        try {
+            if (fs_1.default.existsSync(p))
+                return p;
+        }
+        catch { }
+    }
+    return undefined;
+}
 function shouldNotify(key) {
     const now = Date.now();
     // Eski kayıtları temizle
@@ -74,6 +91,7 @@ function sendBannerNotification(data) {
         const toast = new electron_1.Notification({
             title: 'Aras Antivirüs',
             body: `${data.title}${data.message ? '\n' + data.message : ''}`,
+            icon: getNotificationIconPath(),
         });
         if (data.action && win) {
             toast.on('click', () => {
@@ -101,6 +119,7 @@ function showInAppDialog(options) {
         const toast = new electron_1.Notification({
             title: `⚠ ${options.title}`,
             body: `${options.message}\nDetaylar için tıklayın.`,
+            icon: getNotificationIconPath(),
         });
         // Tray log'a ekle
         try {
@@ -231,6 +250,7 @@ async function askUserAboutThreat(threat) {
             new electron_1.Notification({
                 title: 'Aras Antivirüs',
                 body: `${threat.fileName} geri yüklendi.`,
+                icon: getNotificationIconPath(),
             }).show();
         }
     }
@@ -243,6 +263,7 @@ async function askUserAboutThreat(threat) {
             new electron_1.Notification({
                 title: 'Aras Antivirüs',
                 body: `${threat.fileName} kalıcı olarak silindi.`,
+                icon: getNotificationIconPath(),
             }).show();
         }
     }
@@ -252,6 +273,7 @@ async function askUserAboutThreat(threat) {
         new electron_1.Notification({
             title: 'Aras Antivirüs',
             body: `${threat.fileName} karantinada tutuluyor.`,
+            icon: getNotificationIconPath(),
         }).show();
     }
 }

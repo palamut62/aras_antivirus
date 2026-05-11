@@ -14,6 +14,11 @@ let trayUpdateInterval: NodeJS.Timeout | null = null
 log.transports.file.level = 'info'
 log.transports.console.level = 'debug'
 
+if (process.platform === 'win32') {
+  // Prevent Windows toast header from showing "electron.app.Electron" in dev/runtime.
+  app.setAppUserModelId('com.aras.antivirus')
+}
+
 // Autostart - Windows başlangıcında çalıştır
 function setupAutostart() {
   app.setLoginItemSettings({

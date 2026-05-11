@@ -31,6 +31,17 @@ interface MoleAPI {
   historyStats: () => Promise<any>
   historyByAction: (action: string) => Promise<any[]>
 
+  // Developer Tools
+  devServers: (action: string, pid?: number) => Promise<any>
+  devNodeModules: (action: string, roots?: string[], minAgeDays?: number, targets?: string[]) => Promise<any>
+  devDocker: (action: string) => Promise<any>
+  devEditorCleanup: (action: string, pids?: number[]) => Promise<any>
+  devSecretSweep: (roots?: string[]) => Promise<any>
+  vulnScan: () => Promise<any>
+  behaviorScan: () => Promise<any>
+  behaviorWatch: (seconds: number) => Promise<any>
+  processTree: () => Promise<any>
+
   // App Uninstaller
   appUninstaller: (action: string, appId?: string) => Promise<any>
 

@@ -1,10 +1,13 @@
 import { Routes, Route, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
-import Sidebar from './components/Sidebar'
+import TopNav from './components/TopNav'
 import TitleBar from './components/TitleBar'
 import StatusBar from './components/StatusBar'
 import TopBanner from './components/TopBanner'
 import AlertDialog from './components/AlertDialog'
+import CommandPalette from './components/CommandPalette'
+import Onboarding from './components/Onboarding'
+import UpdateChecker from './components/UpdateChecker'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { LangProvider } from './contexts/LangContext'
 import { useNotificationStore } from './stores/notificationStore'
@@ -30,6 +33,15 @@ import SystemOptimize from './pages/SystemOptimize'
 import InstallerCleanup from './pages/InstallerCleanup'
 import Threats from './pages/Threats'
 import FileExplorer from './pages/FileExplorer'
+import DevServers from './pages/DevServers'
+import NodeModulesBulk from './pages/NodeModulesBulk'
+import DockerCleanup from './pages/DockerCleanup'
+import EditorCleanup from './pages/EditorCleanup'
+import SecretSweep from './pages/SecretSweep'
+import VulnScan from './pages/VulnScan'
+import BehaviorMonitor from './pages/BehaviorMonitor'
+import ProcessTree from './pages/ProcessTree'
+import YaraScan from './pages/YaraScan'
 
 function AppContent() {
   const navigate = useNavigate()
@@ -60,8 +72,8 @@ function AppContent() {
     <>
       <TitleBar />
       <TopBanner />
+      <TopNav />
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <Sidebar />
         <main className="flex-1 overflow-y-auto p-6 relative">
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -85,6 +97,15 @@ function AppContent() {
             <Route path="/app-uninstaller" element={<AppUninstaller />} />
             <Route path="/system-optimize" element={<SystemOptimize />} />
             <Route path="/installer-cleanup" element={<InstallerCleanup />} />
+            <Route path="/dev-servers" element={<DevServers />} />
+            <Route path="/node-modules-bulk" element={<NodeModulesBulk />} />
+            <Route path="/docker-cleanup" element={<DockerCleanup />} />
+            <Route path="/editor-cleanup" element={<EditorCleanup />} />
+            <Route path="/secret-sweep" element={<SecretSweep />} />
+            <Route path="/vuln-scan" element={<VulnScan />} />
+            <Route path="/behavior" element={<BehaviorMonitor />} />
+            <Route path="/process-tree" element={<ProcessTree />} />
+            <Route path="/yara" element={<YaraScan />} />
             <Route path="/help" element={<Help />} />
           </Routes>
         </main>
@@ -93,6 +114,9 @@ function AppContent() {
         <StatusBar />
       </div>
       <AlertDialog />
+      <CommandPalette />
+      <Onboarding />
+      <UpdateChecker />
     </>
   )
 }

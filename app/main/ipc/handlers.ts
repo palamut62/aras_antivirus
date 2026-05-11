@@ -270,6 +270,62 @@ export function registerIpcHandlers() {
     return unwrapped
   })
 
+  // === DEVELOPER TOOLS ===
+  ipcMain.handle('dev:servers', async (_e, action: string, pid?: number) => {
+    const args = ['-Action', action]
+    if (pid && pid > 0) args.push('-ProcessId', String(pid))
+    return await runPowerShell('dev-servers.ps1', args, 'dev-srv-' + action)
+  })
+
+  ipcMain.handle('dev:node-modules', async (_e, action: string, roots?: string[], minAgeDays?: number, targets?: string[]) => {
+    const args = ['-Action', action]
+    if (roots && roots.length > 0) args.push('-Roots', roots.join(','))
+    if (typeof minAgeDays === 'number') args.push('-MinAgeDays', String(minAgeDays))
+    if (targets && targets.length > 0) args.push('-Targets', targets.join(','))
+    const result = await runPowerShell('node-modules-bulk.ps1', args, 'nm-bulk-' + action)
+    if (action === 'delete' && result.success) {
+      HistoryDB.add({
+        action: 'purge' as any,
+        target: `${result.data?.data?.deleted?.length || 0} node_modules`,
+        details: `Bulk node_modules cleanup, ${result.data?.data?.sizeFreed || 0} bytes freed`,
+        sizeBytes: result.data?.data?.sizeFreed || 0,
+        status: 'success',
+      })
+    }
+    return result
+  })
+
+  ipcMain.handle('dev:docker', async (_e, action: string) => {
+    return await runPowerShell('docker-cleanup.ps1', ['-Action', action], 'docker-' + action)
+  })
+
+  ipcMain.handle('dev:editor-cleanup', async (_e, action: string, pids?: number[]) => {
+    const args = ['-Action', action]
+    if (pids && pids.length > 0) args.push('-Pids', pids.join(','))
+    return await runPowerShell('editor-cleanup.ps1', args, 'editor-' + action)
+  })
+
+  ipcMain.handle('security:behavior-scan', async () => {
+    return await runPowerShell('process-events.ps1', ['-Action', 'scan'], 'behavior-scan')
+  })
+  ipcMain.handle('security:process-tree', async () => {
+    return await runPowerShell('process-tree.ps1', [], 'process-tree')
+  })
+
+  ipcMain.handle('security:behavior-watch', async (_e, seconds: number) => {
+    return await runPowerShell('process-events.ps1', ['-Action', 'watch', '-Seconds', String(seconds)], 'behavior-watch')
+  })
+
+  ipcMain.handle('dev:vuln-scan', async () => {
+    return await runPowerShell('vuln-scan.ps1', ['-Action', 'scan'], 'vuln-scan')
+  })
+
+  ipcMain.handle('dev:secret-sweep', async (_e, roots?: string[]) => {
+    const args = ['-Action', 'scan']
+    if (roots && roots.length > 0) args.push('-Roots', roots.join(','))
+    return await runPowerShell('secret-sweep.ps1', args, 'secret-sweep')
+  })
+
   // === SYSTEM ===
   ipcMain.handle('status:get', async () => {
     return await runPowerShell('status.ps1', [], 'status')

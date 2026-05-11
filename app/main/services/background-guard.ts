@@ -1,8 +1,10 @@
-import { Notification, BrowserWindow, ipcMain } from 'electron'
+import { Notification, BrowserWindow, ipcMain, app } from 'electron'
 import { runPowerShell } from './powershell'
 import { HistoryDB } from './history-db'
 import { SettingsService } from './settings'
 import log from 'electron-log'
+import path from 'path'
+import fs from 'fs'
 
 let fileWatchInterval: NodeJS.Timeout | null = null
 let networkInterval: NodeJS.Timeout | null = null
@@ -14,6 +16,18 @@ let mainWindowRef: BrowserWindow | null = null
 // Bildirim deduplication - aynı bildirimi tekrar gösterme
 const recentNotifications = new Map<string, number>() // key → timestamp
 const NOTIFICATION_COOLDOWN = 10 * 60 * 1000 // 10 dakika
+
+function getNotificationIconPath(): string | undefined {
+  const candidates = [
+    path.join(__dirname, '../../assets/icon.ico'),
+    path.join(app.getAppPath(), 'assets', 'icon.ico'),
+    path.join(process.resourcesPath || '', 'assets', 'icon.ico'),
+  ]
+  for (const p of candidates) {
+    try { if (fs.existsSync(p)) return p } catch {}
+  }
+  return undefined
+}
 
 function shouldNotify(key: string): boolean {
   const now = Date.now()
@@ -70,6 +84,7 @@ function sendBannerNotification(data: {
     const toast = new Notification({
       title: 'Aras Antivirüs',
       body: `${data.title}${data.message ? '\n' + data.message : ''}`,
+      icon: getNotificationIconPath(),
     })
     if (data.action && win) {
       toast.on('click', () => {
@@ -105,6 +120,7 @@ function showInAppDialog(options: {
     const toast = new Notification({
       title: `⚠ ${options.title}`,
       body: `${options.message}\nDetaylar için tıklayın.`,
+      icon: getNotificationIconPath(),
     })
 
     // Tray log'a ekle
@@ -259,6 +275,7 @@ async function askUserAboutThreat(threat: { fileName: string; filePath: string; 
       new Notification({
         title: 'Aras Antivirüs',
         body: `${threat.fileName} geri yüklendi.`,
+        icon: getNotificationIconPath(),
       }).show()
     }
   } else if (response.response === 1) {
@@ -270,6 +287,7 @@ async function askUserAboutThreat(threat: { fileName: string; filePath: string; 
       new Notification({
         title: 'Aras Antivirüs',
         body: `${threat.fileName} kalıcı olarak silindi.`,
+        icon: getNotificationIconPath(),
       }).show()
     }
   } else {
@@ -278,6 +296,7 @@ async function askUserAboutThreat(threat: { fileName: string; filePath: string; 
     new Notification({
       title: 'Aras Antivirüs',
       body: `${threat.fileName} karantinada tutuluyor.`,
+      icon: getNotificationIconPath(),
     }).show()
   }
 }

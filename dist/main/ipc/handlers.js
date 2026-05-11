@@ -264,6 +264,60 @@ function registerIpcHandlers() {
         }
         return unwrapped;
     });
+    // === DEVELOPER TOOLS ===
+    electron_1.ipcMain.handle('dev:servers', async (_e, action, pid) => {
+        const args = ['-Action', action];
+        if (pid && pid > 0)
+            args.push('-ProcessId', String(pid));
+        return await (0, powershell_1.runPowerShell)('dev-servers.ps1', args, 'dev-srv-' + action);
+    });
+    electron_1.ipcMain.handle('dev:node-modules', async (_e, action, roots, minAgeDays, targets) => {
+        const args = ['-Action', action];
+        if (roots && roots.length > 0)
+            args.push('-Roots', roots.join(','));
+        if (typeof minAgeDays === 'number')
+            args.push('-MinAgeDays', String(minAgeDays));
+        if (targets && targets.length > 0)
+            args.push('-Targets', targets.join(','));
+        const result = await (0, powershell_1.runPowerShell)('node-modules-bulk.ps1', args, 'nm-bulk-' + action);
+        if (action === 'delete' && result.success) {
+            history_db_1.HistoryDB.add({
+                action: 'purge',
+                target: `${result.data?.data?.deleted?.length || 0} node_modules`,
+                details: `Bulk node_modules cleanup, ${result.data?.data?.sizeFreed || 0} bytes freed`,
+                sizeBytes: result.data?.data?.sizeFreed || 0,
+                status: 'success',
+            });
+        }
+        return result;
+    });
+    electron_1.ipcMain.handle('dev:docker', async (_e, action) => {
+        return await (0, powershell_1.runPowerShell)('docker-cleanup.ps1', ['-Action', action], 'docker-' + action);
+    });
+    electron_1.ipcMain.handle('dev:editor-cleanup', async (_e, action, pids) => {
+        const args = ['-Action', action];
+        if (pids && pids.length > 0)
+            args.push('-Pids', pids.join(','));
+        return await (0, powershell_1.runPowerShell)('editor-cleanup.ps1', args, 'editor-' + action);
+    });
+    electron_1.ipcMain.handle('security:behavior-scan', async () => {
+        return await (0, powershell_1.runPowerShell)('process-events.ps1', ['-Action', 'scan'], 'behavior-scan');
+    });
+    electron_1.ipcMain.handle('security:process-tree', async () => {
+        return await (0, powershell_1.runPowerShell)('process-tree.ps1', [], 'process-tree');
+    });
+    electron_1.ipcMain.handle('security:behavior-watch', async (_e, seconds) => {
+        return await (0, powershell_1.runPowerShell)('process-events.ps1', ['-Action', 'watch', '-Seconds', String(seconds)], 'behavior-watch');
+    });
+    electron_1.ipcMain.handle('dev:vuln-scan', async () => {
+        return await (0, powershell_1.runPowerShell)('vuln-scan.ps1', ['-Action', 'scan'], 'vuln-scan');
+    });
+    electron_1.ipcMain.handle('dev:secret-sweep', async (_e, roots) => {
+        const args = ['-Action', 'scan'];
+        if (roots && roots.length > 0)
+            args.push('-Roots', roots.join(','));
+        return await (0, powershell_1.runPowerShell)('secret-sweep.ps1', args, 'secret-sweep');
+    });
     // === SYSTEM ===
     electron_1.ipcMain.handle('status:get', async () => {
         return await (0, powershell_1.runPowerShell)('status.ps1', [], 'status');

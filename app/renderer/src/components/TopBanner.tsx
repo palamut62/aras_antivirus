@@ -17,10 +17,18 @@ const bgMap: Record<NotificationType, string> = {
   error: 'bg-red-500/10 border-red-500/30',
 }
 
+const labelMap: Record<NotificationType, string> = {
+  info: 'INFO',
+  success: 'OK',
+  warning: 'WARN',
+  error: 'ERROR',
+}
+
 export default function TopBanner() {
   const { notifications, dismiss } = useNotificationStore()
   const navigate = useNavigate()
   const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const visible = [...notifications].slice(-3).reverse()
 
   useEffect(() => {
     for (const n of notifications) {
@@ -42,37 +50,50 @@ export default function TopBanner() {
     }
   }, [notifications, dismiss])
 
-  if (notifications.length === 0) return null
+  if (visible.length === 0) return null
 
   return (
-    <div className="flex flex-col gap-1 px-4 py-1.5 shrink-0">
-      {notifications.slice(-3).map((n) => (
+    <div className="flex justify-end px-4 py-2 shrink-0 pointer-events-none">
+      <div className="w-full max-w-3xl space-y-1.5 pointer-events-auto">
+      {visible.map((n) => (
         <div
           key={n.id}
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs animate-in ${bgMap[n.type]}`}
+          className={`group flex items-start gap-2.5 px-3 py-2.5 rounded-xl border text-xs shadow-sm backdrop-blur-sm ${bgMap[n.type]}`}
           style={{ animation: 'slideDown 0.25s ease-out' }}
         >
-          {iconMap[n.type]}
-          <span className="font-medium">{n.title}</span>
-          {n.message && (
-            <span className="text-mole-text-muted">{n.message}</span>
-          )}
-          {n.action && (
+          <div className="pt-0.5">{iconMap[n.type]}</div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md border border-current/20 text-mole-text-muted font-semibold tracking-wide">
+                {labelMap[n.type]}
+              </span>
+              <span className="text-[10px] text-mole-text-muted">{new Date(n.createdAt).toLocaleTimeString()}</span>
+            </div>
+            <p className="font-semibold text-[12px] leading-4 mt-1">{n.title}</p>
+            {n.message && (
+              <p className="text-mole-text-muted leading-4 mt-0.5 break-all">{n.message}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0 ml-1">
+            {n.action && (
+              <button
+                onClick={() => { navigate(n.action!.route); dismiss(n.id) }}
+                className="flex items-center gap-1 px-2 py-1 rounded-md bg-mole-accent/15 text-mole-accent hover:bg-mole-accent/25 font-semibold transition-colors"
+              >
+                {n.action.label} <ArrowRight size={12} />
+              </button>
+            )}
             <button
-              onClick={() => { navigate(n.action!.route); dismiss(n.id) }}
-              className="flex items-center gap-1 ml-auto text-mole-accent hover:text-mole-accent-hover font-medium transition-colors"
+              onClick={() => dismiss(n.id)}
+              className="p-1 rounded text-mole-text-muted hover:text-mole-text hover:bg-mole-bg/40 transition-colors"
+              aria-label="Dismiss notification"
             >
-              {n.action.label} <ArrowRight size={12} />
+              <X size={13} />
             </button>
-          )}
-          <button
-            onClick={() => dismiss(n.id)}
-            className={`${n.action ? '' : 'ml-auto'} text-mole-text-muted hover:text-mole-text transition-colors shrink-0`}
-          >
-            <X size={13} />
-          </button>
+          </div>
         </div>
       ))}
+      </div>
     </div>
   )
 }

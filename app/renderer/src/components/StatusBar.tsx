@@ -13,7 +13,10 @@ export default function StatusBar() {
   useEffect(() => {
     const fetchStatus = () => {
       if (typeof window.moleAPI?.guardControl === 'function') {
-        window.moleAPI.guardControl('status').then(r => setGuardRunning(r.running)).catch(() => {})
+        window.moleAPI.guardControl('status').then((r: any) => {
+          const running = typeof r?.running === 'boolean' ? r.running : !!r?.data?.running
+          setGuardRunning(running)
+        }).catch(() => {})
       }
     }
     const fetchResources = () => {
@@ -38,7 +41,7 @@ export default function StatusBar() {
   return (
     <div className="h-8 min-h-[32px] w-full bg-mole-surface/80 backdrop-blur-sm border-t border-mole-border flex items-center px-4 gap-4 text-xs z-50 transition-colors">
       {/* App info */}
-      <span className="text-[10px] text-mole-text-muted/60 font-medium shrink-0">Aras Antivirüs v1.3</span>
+      <span className="text-[10px] text-mole-text-muted/60 font-medium shrink-0">Aras Antivirüs v1.6.0</span>
       <div className="w-px h-3.5 bg-mole-border/50" />
 
       {/* Active task */}

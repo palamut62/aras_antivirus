@@ -5,13 +5,13 @@ import {
   ShieldCheck, Cpu, FolderLock, GitBranch, Eye, Globe, Usb, Wifi,
   ChevronLeft, ChevronRight, ChevronDown, HelpCircle, Bug, FolderOpen,
   Package, Zap, FileBox, Bot,
+  Server, Container, Wind, KeyRound, PackageOpen, ShieldAlert, Network,
 } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 
 const cleanupItems = [
   { to: '/', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
   { to: '/deep-clean', icon: Sparkles, labelKey: 'nav.deepClean' },
-  { to: '/dev-purge', icon: Code2, labelKey: 'nav.devPurge' },
   { to: '/analyze', icon: HardDrive, labelKey: 'nav.diskAnalysis' },
 ]
 
@@ -24,8 +24,20 @@ const securityItems = [
   { to: '/usb', icon: Usb, labelKey: 'nav.usbMonitor' },
   { to: '/processes', icon: Cpu, labelKey: 'nav.processes' },
   { to: '/repo-scan', icon: GitBranch, labelKey: 'nav.repoSecurity' },
+  { to: '/vuln-scan', icon: ShieldAlert, labelKey: 'nav.vulnScan' },
+  { to: '/behavior', icon: Activity, labelKey: 'nav.behavior' },
+  { to: '/process-tree', icon: Network, labelKey: 'nav.processTree' },
   { to: '/threats', icon: Bug, labelKey: 'nav.threats' },
   { to: '/quarantine', icon: FolderLock, labelKey: 'nav.quarantine' },
+]
+
+const developerItems = [
+  { to: '/dev-servers', icon: Server, labelKey: 'nav.devServers' },
+  { to: '/dev-purge', icon: Code2, labelKey: 'nav.devPurge' },
+  { to: '/node-modules-bulk', icon: PackageOpen, labelKey: 'nav.nodeModulesBulk' },
+  { to: '/docker-cleanup', icon: Container, labelKey: 'nav.dockerCleanup' },
+  { to: '/editor-cleanup', icon: Wind, labelKey: 'nav.editorCleanup' },
+  { to: '/secret-sweep', icon: KeyRound, labelKey: 'nav.secretSweep' },
 ]
 
 const systemItems = [
@@ -79,10 +91,10 @@ function NavSection({ title, items, collapsed, expanded, onToggle }: {
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
-  const [expandedSections, setExpandedSections] = useState({ cleanup: true, security: true, system: true })
+  const [expandedSections, setExpandedSections] = useState({ cleanup: true, security: true, developer: true, system: true })
   const { t } = useLang()
 
-  const toggleSection = (key: 'cleanup' | 'security' | 'system') => {
+  const toggleSection = (key: 'cleanup' | 'security' | 'developer' | 'system') => {
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
@@ -96,6 +108,7 @@ export default function Sidebar() {
 
       <NavSection title={t('nav.cleanup')} items={cleanupItems} collapsed={collapsed} expanded={expandedSections.cleanup} onToggle={() => toggleSection('cleanup')} />
       <NavSection title={t('nav.security')} items={securityItems} collapsed={collapsed} expanded={expandedSections.security} onToggle={() => toggleSection('security')} />
+      <NavSection title={t('nav.developer')} items={developerItems} collapsed={collapsed} expanded={expandedSections.developer} onToggle={() => toggleSection('developer')} />
       <NavSection title={t('nav.system')} items={systemItems} collapsed={collapsed} expanded={expandedSections.system} onToggle={() => toggleSection('system')} />
 
       {/* Footer spacer */}

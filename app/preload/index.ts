@@ -27,6 +27,18 @@ const api = {
   networkMonitor: (action: string, remoteAddress?: string, pid?: number, ruleName?: string) =>
     ipcRenderer.invoke('network:monitor', action, remoteAddress, pid, ruleName),
 
+  // Developer Tools
+  devServers: (action: string, pid?: number) => ipcRenderer.invoke('dev:servers', action, pid),
+  devNodeModules: (action: string, roots?: string[], minAgeDays?: number, targets?: string[]) =>
+    ipcRenderer.invoke('dev:node-modules', action, roots, minAgeDays, targets),
+  devDocker: (action: string) => ipcRenderer.invoke('dev:docker', action),
+  devEditorCleanup: (action: string, pids?: number[]) => ipcRenderer.invoke('dev:editor-cleanup', action, pids),
+  devSecretSweep: (roots?: string[]) => ipcRenderer.invoke('dev:secret-sweep', roots),
+  vulnScan: () => ipcRenderer.invoke('dev:vuln-scan'),
+  behaviorScan: () => ipcRenderer.invoke('security:behavior-scan'),
+  behaviorWatch: (seconds: number) => ipcRenderer.invoke('security:behavior-watch', seconds),
+  processTree: () => ipcRenderer.invoke('security:process-tree'),
+
   // App Uninstaller
   appUninstaller: (action: string, appId?: string) => ipcRenderer.invoke('app:uninstaller', action, appId),
 

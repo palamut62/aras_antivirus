@@ -2,7 +2,7 @@
 
 A modern, all-in-one **security and system optimization** desktop application for Windows. Built with Electron + React, powered by PowerShell backend scripts with **Windows Defender** and **VirusTotal** integration.
 
-![Version](https://img.shields.io/badge/version-1.5.1-blue)
+![Version](https://img.shields.io/badge/version-1.6.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
@@ -82,7 +82,7 @@ Backend Scripts (21 .ps1 files)
 ## Installation
 
 ### From Release (Recommended)
-1. Download `Aras Antivirüs Setup 1.5.1.exe` from [Releases](https://github.com/palamut62/aras_antivirus/releases)
+1. Download `Aras Antivirüs Setup 1.6.0.exe` from [Releases](https://github.com/palamut62/aras_antivirus/releases)
 2. Run the installer
 3. The app starts automatically and sits in system tray
 

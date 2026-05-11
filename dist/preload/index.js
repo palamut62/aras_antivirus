@@ -21,6 +21,16 @@ const api = {
     webProtection: (action) => electron_1.ipcRenderer.invoke('web:protection', action),
     usbMonitor: (action, driveLetter) => electron_1.ipcRenderer.invoke('usb:monitor', action, driveLetter),
     networkMonitor: (action, remoteAddress, pid, ruleName) => electron_1.ipcRenderer.invoke('network:monitor', action, remoteAddress, pid, ruleName),
+    // Developer Tools
+    devServers: (action, pid) => electron_1.ipcRenderer.invoke('dev:servers', action, pid),
+    devNodeModules: (action, roots, minAgeDays, targets) => electron_1.ipcRenderer.invoke('dev:node-modules', action, roots, minAgeDays, targets),
+    devDocker: (action) => electron_1.ipcRenderer.invoke('dev:docker', action),
+    devEditorCleanup: (action, pids) => electron_1.ipcRenderer.invoke('dev:editor-cleanup', action, pids),
+    devSecretSweep: (roots) => electron_1.ipcRenderer.invoke('dev:secret-sweep', roots),
+    vulnScan: () => electron_1.ipcRenderer.invoke('dev:vuln-scan'),
+    behaviorScan: () => electron_1.ipcRenderer.invoke('security:behavior-scan'),
+    behaviorWatch: (seconds) => electron_1.ipcRenderer.invoke('security:behavior-watch', seconds),
+    processTree: () => electron_1.ipcRenderer.invoke('security:process-tree'),
     // App Uninstaller
     appUninstaller: (action, appId) => electron_1.ipcRenderer.invoke('app:uninstaller', action, appId),
     // System Optimize

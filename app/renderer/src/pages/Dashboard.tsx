@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { HardDrive, Trash2, Zap, Shield, Loader2, CheckCircle2, FolderSearch, AlertTriangle, StopCircle, Copy, Check, Activity, Clock } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { HardDrive, Trash2, Zap, Shield, Loader2, CheckCircle2, FolderSearch, AlertTriangle, StopCircle, Copy, Check, Activity, Clock, Sparkles, ListChecks, ShieldCheck, ExternalLink, Download } from 'lucide-react'
 import { useLang } from '../contexts/LangContext'
 import { useScanStore } from '../stores/scanStore'
 import { useNotificationStore } from '../stores/notificationStore'
@@ -22,6 +23,20 @@ export default function Dashboard() {
   const [logCopied, setLogCopied] = useState(false)
   const [recentHistory, setRecentHistory] = useState<any[]>([])
   const notifications = useNotificationStore(s => s.notifications)
+  const pushNotif = useNotificationStore(s => s.push)
+  const navigate = useNavigate()
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [cleaning, setCleaning] = useState(false)
+  const [cleanResult, setCleanResult] = useState<any>(null)
+
+  // Auto-select non-safe categories after scan
+  useEffect(() => {
+    const cats: ScanCategory[] = scanResult?.data?.categories || []
+    if (cats.length > 0 && selected.size === 0) {
+      setSelected(new Set(cats.filter(c => c.riskLevel === 'safe').map(c => c.id)))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanResult?.data?.categories])
 
   // Load recent history
   useEffect(() => {
@@ -112,6 +127,68 @@ export default function Dashboard() {
     return bytes + ' B'
   }
 
+  const toggleCat = (id: string) => {
+    setSelected(prev => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id); else n.add(id)
+      return n
+    })
+  }
+
+  const selectAll = (only?: 'safe' | 'all') => {
+    const cats: ScanCategory[] = scanResult?.data?.categories || []
+    if (only === 'safe') setSelected(new Set(cats.filter(c => c.riskLevel === 'safe').map(c => c.id)))
+    else setSelected(new Set(cats.map(c => c.id)))
+  }
+
+  const cleanSelected = async () => {
+    if (selected.size === 0) return
+    setCleaning(true); setCleanResult(null)
+    try {
+      const r = await window.moleAPI.cleanExecute(Array.from(selected))
+      setCleanResult(r)
+      if (r.success) {
+        pushNotif({
+          type: 'success',
+          title: tx('Temizlik tamamlandı!', 'Cleanup completed!'),
+          message: `${formatSize(r.data?.sizeFreed || 0)} ${tx('kazanıldı', 'freed')}`,
+        })
+        // Reset scan to reflect new state — user can rescan
+        set({ scanResult: null, scanLog: [] })
+        setSelected(new Set())
+        // Refresh history
+        window.moleAPI.historyList(10, 0).then(setRecentHistory).catch(() => {})
+      } else {
+        pushNotif({
+          type: 'error',
+          title: tx('Temizlik hatası', 'Cleanup error'),
+          message: r.error,
+        })
+      }
+    } catch (e: any) {
+      pushNotif({ type: 'error', title: tx('Hata', 'Error'), message: e.message })
+    } finally {
+      setCleaning(false)
+    }
+  }
+
+  const exportResults = () => {
+    if (!scanResult?.data) return
+    const blob = new Blob([JSON.stringify(scanResult.data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `aras-scan-${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const selectedSize = (scanResult?.data?.categories || [])
+    .filter((c: ScanCategory) => selected.has(c.id))
+    .reduce((s: number, c: ScanCategory) => s + c.sizeBytes, 0)
+
+  const hasRisky = (scanResult?.data?.categories || []).some((c: ScanCategory) => c.riskLevel !== 'safe' && selected.has(c.id))
+
   const riskIcon = (level: string) => {
     if (level === 'safe') return <CheckCircle2 size={14} className="text-mole-safe" />
     if (level === 'review') return <AlertTriangle size={14} className="text-mole-warning" />
@@ -201,36 +278,115 @@ export default function Dashboard() {
       {/* Scan Results - Category Cards */}
       {scanResult?.data?.categories && (
         <div className="bg-mole-surface rounded-xl p-6 border border-mole-border">
-          <h2 className="text-lg font-semibold mb-4">{tx('Tarama Sonuçları', 'Scan Results')}</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">{tx('Tarama Sonuçları', 'Scan Results')}</h2>
+            <div className="flex items-center gap-2 text-xs">
+              <button onClick={() => selectAll('safe')} className="px-2 py-1 border border-mole-border rounded hover:bg-mole-bg">{tx('Sadece güvenli', 'Safe only')}</button>
+              <button onClick={() => selectAll('all')} className="px-2 py-1 border border-mole-border rounded hover:bg-mole-bg">{tx('Tümünü seç', 'Select all')}</button>
+              <button onClick={() => setSelected(new Set())} className="px-2 py-1 border border-mole-border rounded hover:bg-mole-bg">{tx('Temizle', 'Clear')}</button>
+            </div>
+          </div>
           <div className="space-y-2">
-            {scanResult.data.categories.map((cat: ScanCategory) => (
-              <div key={cat.id} className="flex items-center gap-4 py-3 px-4 bg-mole-bg rounded-lg hover:bg-mole-bg/80 transition-colors">
-                {riskIcon(cat.riskLevel)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-sm">{cat.label}</p>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
-                      cat.riskLevel === 'safe' ? 'bg-mole-safe/20 text-mole-safe' :
-                      cat.riskLevel === 'review' ? 'bg-mole-warning/20 text-mole-warning' :
-                      'bg-mole-danger/20 text-mole-danger'
-                    }`}>
-                      {cat.riskLevel === 'safe' ? tx('güvenli', 'safe') : cat.riskLevel === 'review' ? tx('incelenmeli', 'review') : tx('riskli', 'risky')}
-                    </span>
+            {scanResult.data.categories.map((cat: ScanCategory) => {
+              const isSelected = selected.has(cat.id)
+              return (
+                <label key={cat.id} className={`flex items-center gap-3 py-3 px-4 rounded-lg cursor-pointer transition-colors border ${
+                  isSelected ? 'bg-mole-accent/5 border-mole-accent/30' : 'bg-mole-bg border-transparent hover:bg-mole-bg/80'
+                }`}>
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleCat(cat.id)}
+                    className="accent-mole-accent w-4 h-4 shrink-0" />
+                  {riskIcon(cat.riskLevel)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{cat.label}</p>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                        cat.riskLevel === 'safe' ? 'bg-mole-safe/20 text-mole-safe' :
+                        cat.riskLevel === 'review' ? 'bg-mole-warning/20 text-mole-warning' :
+                        'bg-mole-danger/20 text-mole-danger'
+                      }`}>
+                        {cat.riskLevel === 'safe' ? tx('güvenli', 'safe') : cat.riskLevel === 'review' ? tx('incelenmeli', 'review') : tx('riskli', 'risky')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-mole-text-muted truncate mt-0.5">{cat.path}</p>
                   </div>
-                  <p className="text-xs text-mole-text-muted truncate mt-0.5">{cat.path}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-semibold text-sm">{formatSize(cat.sizeBytes)}</p>
-                  <p className="text-xs text-mole-text-muted">{cat.fileCount.toLocaleString()} {tx('dosya', 'files')}</p>
-                </div>
-              </div>
-            ))}
+                  <div className="text-right shrink-0">
+                    <p className="font-semibold text-sm">{formatSize(cat.sizeBytes)}</p>
+                    <p className="text-xs text-mole-text-muted">{cat.fileCount.toLocaleString()} {tx('dosya', 'files')}</p>
+                  </div>
+                </label>
+              )
+            })}
           </div>
 
-          {/* Total bar */}
-          <div className="mt-4 pt-4 border-t border-mole-border flex items-center justify-between">
-            <span className="text-mole-text-muted text-sm">{tx('Toplam kazanılabilir alan', 'Total reclaimable space')}</span>
-            <span className="text-xl font-bold text-mole-accent">{formatSize(scanResult.data.totalSize)}</span>
+          {/* Action bar */}
+          <div className="mt-4 pt-4 border-t border-mole-border flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-mole-text-muted text-xs">{tx('Seçili', 'Selected')}: {selected.size} / {scanResult.data.categories.length}</p>
+              <p className="text-xl font-bold text-mole-accent">{formatSize(selectedSize)}</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={exportResults}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-mole-border rounded hover:bg-mole-bg">
+                <Download size={14} /> {tx('Dışa Aktar', 'Export')}
+              </button>
+              <button onClick={() => navigate('/deep-clean')}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-mole-border rounded hover:bg-mole-bg">
+                <ListChecks size={14} /> {tx('Detaylı Yönet', 'Manage in detail')}
+              </button>
+              <button onClick={cleanSelected} disabled={cleaning || selected.size === 0}
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded font-medium ${
+                  hasRisky ? 'bg-mole-danger hover:bg-mole-danger/80' : 'bg-mole-accent hover:bg-mole-accent-hover'
+                } disabled:opacity-50`}>
+                {cleaning
+                  ? <><Loader2 size={14} className="animate-spin" /> {tx('Temizleniyor...', 'Cleaning...')}</>
+                  : <><Trash2 size={14} /> {tx('Seçilenleri Temizle', 'Clean Selected')}</>}
+              </button>
+            </div>
+          </div>
+
+          {/* Clean result */}
+          {cleanResult && (
+            <div className={`mt-4 p-3 rounded-lg border ${cleanResult.success ? 'bg-mole-safe/10 border-mole-safe/30' : 'bg-mole-danger/10 border-mole-danger/30'}`}>
+              <p className="font-medium text-sm">
+                {cleanResult.success
+                  ? `${tx('Temizlik tamamlandı', 'Cleanup completed')} — ${formatSize(cleanResult.data?.sizeFreed || 0)} ${tx('kazanıldı', 'freed')}`
+                  : `${tx('Hata', 'Error')}: ${cleanResult.error}`}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* "Sonra ne yapacaksın?" — next-steps panel after scan */}
+      {scanResult?.data?.categories && !cleaning && (
+        <div className="bg-mole-surface rounded-xl p-6 border border-mole-border">
+          <h2 className="text-lg font-semibold mb-1">{tx('Önerilen Sonraki Adımlar', 'Recommended Next Steps')}</h2>
+          <p className="text-mole-text-muted text-sm mb-4">{tx('Temizlik dışında sistemini daha güvenli ve hızlı yap', 'Beyond cleanup — make your system safer and faster')}</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { icon: ShieldCheck, label: tx('Güvenlik Tarama', 'Security Scan'), desc: tx('Defender + heuristic + VT', 'Defender + heuristic + VT'), route: '/security-scan', accent: true },
+              { icon: AlertTriangle, label: tx('Davranış İzleme', 'Behavior Monitor'), desc: tx('Şüpheli process pattern\'leri', 'Suspicious process patterns'), route: '/behavior' },
+              { icon: Shield, label: tx('Güvenlik Açıkları', 'Vulnerabilities'), desc: tx('Yüklü programları CVE ile eşle', 'Match installed apps with CVE'), route: '/vuln-scan' },
+              { icon: Zap, label: tx('Sistem Optimize', 'System Optimize'), desc: tx('DNS, Defrag, Search, SFC', 'DNS, Defrag, Search, SFC'), route: '/system-optimize' },
+              { icon: Sparkles, label: tx('Derin Temizlik', 'Deep Clean'), desc: tx('19 kategori ayrıntı', '19-category detail'), route: '/deep-clean' },
+              { icon: HardDrive, label: tx('Disk Analizi', 'Disk Analysis'), desc: tx('Hangi klasör ne kadar yer kaplıyor', 'Which folder uses how much'), route: '/analyze' },
+              { icon: ExternalLink, label: tx('Program Kaldırıcı', 'App Uninstaller'), desc: tx('Kullanılmayan programları kaldır', 'Remove unused programs'), route: '/app-uninstaller' },
+              { icon: Activity, label: tx('Geçmiş', 'History'), desc: tx('Tüm işlem geçmişini incele', 'Review all operation history'), route: '/logs' },
+            ].map((s, i) => {
+              const Icon = s.icon
+              return (
+                <button key={i} onClick={() => navigate(s.route)}
+                  className={`text-left p-3 rounded-lg border transition-colors group ${
+                    s.accent
+                      ? 'bg-mole-accent/5 border-mole-accent/30 hover:bg-mole-accent/10'
+                      : 'bg-mole-bg border-mole-border hover:bg-mole-bg/60 hover:border-mole-accent/30'
+                  }`}>
+                  <Icon size={18} className={s.accent ? 'text-mole-accent' : 'text-mole-text-muted group-hover:text-mole-accent'} />
+                  <p className="font-medium text-sm mt-2">{s.label}</p>
+                  <p className="text-xs text-mole-text-muted mt-0.5">{s.desc}</p>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
