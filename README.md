@@ -1,69 +1,74 @@
-﻿# Aras Antivirus
+# Aras Antivirus
 
-Aras Antivirus is a Windows desktop application for security scanning, real-time protection, malware quarantine, cleanup, and system optimization.
+<p align="center">Windows-focused security scanning, real-time protection, and cleanup desktop suite.</p>
 
-It combines:
-- A React desktop UI
-- An Electron main process with tray integration
-- PowerShell-based backend operations
-- Windows Defender + optional VirusTotal checks
+<p align="center">
+  <a href="https://github.com/palamut62/aras_antivirus">Repository</a> ·
+  <a href="https://github.com/palamut62/aras_antivirus/releases">Releases</a> ·
+  <a href="https://github.com/palamut62/aras_antivirus/issues">Issues</a>
+</p>
 
-Version: `1.6.0`
+![badge](https://img.shields.io/badge/version-1.6.0-2563EB)
+![badge](https://img.shields.io/badge/license-MIT-22C55E)
+![badge](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows&logoColor=white)
+![badge](https://img.shields.io/badge/Electron-191970?logo=electron&logoColor=white)
+![badge](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
+![badge](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![badge](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![badge](https://img.shields.io/badge/PowerShell-5391FE?logo=powershell&logoColor=white)
 
-## What Is Included
+## Table of Contents
 
-### Security
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Security](#security)
+- [FAQ](#faq)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
+
+## Features
+
 - Quick, full, and custom security scans
-- Windows Defender integration (`Start-MpScan`, threat status checks)
-- Optional VirusTotal hash lookups
-- Real-time background guard for Downloads, Desktop, Documents, Pictures, Temp
-- USB event monitoring and suspicious file checks
-- Network monitor with suspicious connection review
-- Web protection checks (downloads/history/extensions)
-- Quarantine flow with restore and permanent delete
-- Threat history and event tracking
+- Windows Defender-backed detection flow
+- Optional VirusTotal hash lookup integration
+- Real-time background guard for user folders
+- Quarantine with restore and permanent delete operations
+- USB monitoring, network monitoring, and suspicious activity checks
+- Deep clean and developer cleanup utilities
+- Desktop notifications, tray integration, and activity logging
+- Turkish and English UI support
 
-### Cleanup and Optimization
-- Deep clean categories for temp/cache/junk sources
-- Developer cleanup (build artifacts, package caches, tooling leftovers)
-- App uninstaller support
-- Installer cleanup
-- System optimization actions
-- Disk analysis and file explorer utilities
+## Tech Stack
 
-### UX and Operations
-- Tray menu with live status and recent activity
-- Native desktop notifications
-- Top banner notifications in app
-- Command palette and page shortcuts
-- Multi-page dashboard and detailed activity history
-- Logs hub (activity, operation logs, runtime logs)
-- Turkish and English language support
-
-## Recent Updates Included In This State
-
-This repository state includes the following major updates:
-- Unified app icon rollout (window UI, tray, renderer, bundle assets, desktop shortcut)
-- Transparent icon variants and size set updates (`.png` + `.ico`)
-- Tray icon load path hardening (`png` preferred with `ico` fallback)
-- Recent Activity detail dialog improvements
-- Logs page expansion and routing improvements
-- Settings and Help layout balancing improvements
-- Added/updated navigation access to Logs Hub
-- Hidden-start shortcut workflow updates
-- Multiple encoding and UI text fixes across modified files
+| Technology | Usage |
+| --- | --- |
+| Electron | Desktop shell, app lifecycle, tray integration, IPC bridge |
+| React + Vite | Renderer UI and fast local development builds |
+| TypeScript | Type-safe main/renderer application code |
+| PowerShell | Security and cleanup operation scripts on Windows |
+| Windows Defender | Native malware scan and threat status integration |
+| Tauri (optional path) | Additional Rust/Tauri runtime artifacts in `src-tauri/` |
 
 ## Architecture
 
 ```text
 Renderer (React + Vite)
-  -> preload bridge (typed window API)
-  -> Electron IPC handlers
+  -> preload bridge (window API)
+  -> IPC handlers
 Main Process (Electron)
-  -> services (settings, logger, history, scheduled scan, background guard)
-  -> PowerShell scripts (security/cleanup/system operations)
+  -> services (settings, logs, history, scheduler, guard)
+  -> PowerShell script runner
 Windows platform services
-  -> Defender, WMI, filesystem, networking, notifications
+  -> Defender, filesystem, process/network checks, notifications
 ```
 
 ## Project Structure
@@ -72,80 +77,116 @@ Windows platform services
 aras_antivirus/
   app/
     main/
-      index.ts
-      ipc/
-      services/
     preload/
-      index.ts
     renderer/
-      index.html
-      src/
-        components/
-        contexts/
-        lib/
-        pages/
-        stores/
-        types/
   backend/
     ps/
-  assets/
   src-tauri/
-  dist/
+  assets/
   scripts/
+  README.md
 ```
 
-## Requirements
+## Getting Started
+
+### Prerequisites
 
 - Windows 10 or Windows 11
 - PowerShell 5.1+
-- Node.js 18+ (for development)
+- Node.js 18+
 - npm 9+
-- Windows Defender enabled (for Defender-backed checks)
-- VirusTotal API key (optional)
 
-## Development
+### Installation
 
 ```bash
 git clone https://github.com/palamut62/aras_antivirus.git
 cd aras_antivirus
 npm install
+```
+
+### Run (Development)
+
+```bash
 npm run dev
 ```
 
-## Build
+## Configuration
+
+- `VIRUSTOTAL_API_KEY` (optional): enables VirusTotal checks in related scripts and handlers.
+- The key can be provided through app settings or environment variables depending on your workflow.
+
+## Usage
+
+1. Launch the app with `npm run dev` (or packaged binary).
+2. Run a quick/full/custom scan from the Security pages.
+3. Review detections in Threats and Quarantine.
+4. Use cleanup pages (deep clean, dev cleanup, uninstall helpers) as needed.
+5. Monitor activity from Logs and dashboard widgets.
+
+## Testing
+
+There is currently no dedicated automated test suite in this repository.  
+For verification, run:
 
 ```bash
 npm run build
 ```
 
-## Packaging
+Then manually validate key flows in the running app (`npm run dev`).
+
+## Deployment
+
+- Build desktop bundles with:
 
 ```bash
 npm run dist
 ```
 
-## Desktop Shortcut (Hidden Launch)
+- Generate unpacked artifacts with:
 
-This repository includes hidden-start launcher flow:
-- `start-aras-hidden.vbs`
-- desktop shortcut targeting `wscript.exe`
+```bash
+npm run pack
+```
 
-The shortcut is configured to:
-- start app without showing a terminal window
-- use the project icon file from `assets/icon.ico`
+## Roadmap
 
-## Logging
+- [ ] Add automated integration checks for critical security flows
+- [ ] Expand threat intelligence and reporting views
+- [ ] Improve release automation and signed build pipeline
 
-The application logs are available in two forms:
-- UI logs via Logs page (history/operations/runtime)
-- Electron log files via `electron-log` service
+## Contributing
 
-## Security Notes
+1. Fork the repository.
+2. Create a branch from `main`.
+3. Keep commits focused and descriptive.
+4. Open a pull request with implementation context and manual test notes.
 
-- Real-time checks and cleanup scripts may require elevated permissions depending on target paths.
-- Defender and firewall operations depend on local Windows policy.
-- VirusTotal free tier has strict rate limits.
+## Security
+
+- Do not disclose vulnerabilities publicly before maintainers review them.
+- Open a private channel with maintainers when reporting sensitive findings.
+- Include reproduction steps, impact, and affected versions.
+
+## FAQ
+
+### Is this only for Windows?
+
+Yes. The current workflow depends on Windows tooling (PowerShell and Defender).
+
+### Is VirusTotal required?
+
+No. VirusTotal checks are optional and work when `VIRUSTOTAL_API_KEY` is configured.
+
+### Can I run without packaging?
+
+Yes. Use `npm run dev` for development mode.
 
 ## License
 
-MIT
+Distributed under the MIT License. See `LICENSE` for details.
+
+## Acknowledgments
+
+- Electron, React, and Vite communities
+- Microsoft Defender and PowerShell ecosystem
+
